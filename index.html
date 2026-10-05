@@ -69,6 +69,8 @@ label.chk{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding-block:10px;margin-bottom:14px}
 .bar .row{row-gap:6px}
+.bar h1{flex:1 1 auto;min-width:min-content}
+.ver{font-size:.72rem;color:var(--muted);font-family:var(--body);font-weight:400;margin-left:8px;white-space:nowrap}
 .bar select{width:auto;max-width:100%}
 .chip{font-size:.8rem;border:1px solid var(--line);border-radius:99px;padding:1px 10px;color:var(--muted);white-space:nowrap}
 .chip.ok{color:var(--ok);border-color:var(--ok)} .chip.bad{color:var(--danger);border-color:var(--danger)}
@@ -329,6 +331,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 const RULES=window.DH_RULES||[];
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
+const APP_VERSION='1.4';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -479,7 +482,7 @@ const featBlock=(src,f)=>`<div class="feat"><span class="src">${src}</span><h3>$
 /* ============ render: chrome ============ */
 const TABS=[['sheet',b('Karakterlap','Sheet')],['play',b('Játék','Play')],['cards',b('Kártyák','Cards')],['gear',b('Felszerelés','Gear')],['level',b('Fejlődés','Progress')],['journal',b('Napló','Journal')],['notes',b('Jegyzetek','Notes')],['rules',b('Szabályok','Rules')]];
 function renderBar(){const c=cur();
- $('#bar').innerHTML=`<div class="row"><h1 class="grow">Daggerheart ${L('Karakterlapok','Character Sheets')}</h1>
+ $('#bar').innerHTML=`<div class="row"><h1>Daggerheart ${L('Karakterlapok','Character Sheets')}<span class="ver" title="${L('Az app verziója','App version')}">v${APP_VERSION}</span></h1>
   <span id="sync" class="chip ${ui.sync==='saved'?'ok':ui.sync==='error'?'bad':''}">${syncText()}</span>
   <button class="btn sm" data-act="theme" title="${L('Téma váltása: világos → sötét → automatikus','Switch theme: light → dark → auto')}">${{light:'☀ '+L('Nappali','Light'),dark:'☾ '+L('Éjszakai','Dark')}[S.theme]||'◐ '+L('Auto téma','Auto theme')}</button>
   <button class="btn sm" data-act="lang">${lang==='hu'?'English':'Magyar'}</button></div>
@@ -1048,7 +1051,10 @@ function exampleChar(){const c=newChar();Object.assign(c,{example:true,creating:
 function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);if(!S.chars.length){const c=exampleChar();S.chars=[c];S.cur=c.id}lang=S.lang||'hu';
  const h=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===h))ui.tab=h;render();initRemote();
  window.addEventListener('beforeprint',()=>fillPrint());
- if(!IN_ARTIFACT&&'serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{})}
+ if(!IN_ARTIFACT&&'serviceWorker' in navigator&&location.protocol==='https:'){const sw=navigator.serviceWorker,had=!!sw.controller;let done=false;
+  // when a newer version of the app takes over, reload once so the page is never stale
+  sw.addEventListener('controllerchange',()=>{if(had&&!done){done=true;location.reload()}});
+  sw.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{})}}
 boot();
 </script>
 </body>
