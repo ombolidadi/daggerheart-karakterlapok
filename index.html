@@ -111,8 +111,11 @@ hr{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
 .shield{display:grid;place-items:center;width:56px;height:62px;clip-path:polygon(0 0,100% 0,100% 62%,50% 100%,0 62%);background:var(--ink);color:var(--bg);font-family:var(--display);font-weight:800;font-size:1.45rem;line-height:1;padding-bottom:9px}
 .shield.arm{background:var(--muted)}
 .badge{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
-.badge .lbl{display:block}
-.profdots{display:flex;gap:4px;height:62px;align-items:center} .profdots i{width:13px;height:13px;border-radius:50%;border:2px solid var(--hope);margin:0} .profdots i.on{background:var(--hope)}
+.badges{display:flex;flex-wrap:nowrap;gap:12px;align-items:flex-start;justify-content:space-between}
+.badge{flex:1 1 0;min-width:0}
+.badge .lbl{display:block;justify-content:center;white-space:nowrap}
+.badge .lbl i.en{display:block;margin:0;text-transform:none;letter-spacing:0}
+.profdots{display:flex;gap:3px;height:62px;align-items:center} .profdots i{width:13px;height:13px;border-radius:50%;border:2px solid var(--hope);margin:0} .profdots i.on{background:var(--hope)}
 
 .trait{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:12px 8px 10px;display:flex;flex-direction:column;gap:3px;align-items:center;text-align:center}
 .trait .tn{font-family:var(--display);font-weight:700;font-size:1.05rem}
@@ -515,7 +518,7 @@ function vVitals(c,d){
   <div class="vital"><div class="lbl"><span>${T('Sebzésküszöbök','Damage Thresholds')}</span></div>
    <div class="thr">${[[1,L('Enyhe','Minor'),'Minor'],[2,L('Jelentős','Major'),'Major'],[3,L('Súlyos','Severe'),'Severe']].map(([n,nm,en],i)=>{const useA=ui.thrArmor&&c.armorMarked<d.armor.v,hp=useA?n-1:n;return `${i?`<b class="num">${i===1?d.major.v:d.severe.v}</b>`:''}<button type="button" data-act="thrHit" data-n="${n}" data-en="${en}" title="${L('Kattints: ennyi Életpont megjelölése','Click to mark this many Hit Points')}">${nm}<br><span class="muted">${useA?`<s>${n}</s> `:''}${hp} ${L('ÉP','HP')}</span></button>`}).join('')}</div>
    <div class="row" style="margin-top:5px;gap:6px"><span class="small muted grow">${L('Kattints a kapott sebzés fokozatára.','Click the severity of the damage you take.')}</span>${d.armor.v?`<button type="button" class="btn sm ${ui.thrArmor&&c.armorMarked<d.armor.v?'fear':''}" data-act="thrArmor" ${c.armorMarked<d.armor.v?'':'disabled'} title="${L('A következő sebzésnél egy Páncélhelyet jelölsz, és a sebzés egy fokozattal enyhébb','Mark an Armor Slot on the next hit to lower it by one threshold')}">${L('Páncélhellyel −1','With Armor Slot −1')}</button>`:''}</div></div>
-  <div class="vital"><div class="row" style="gap:14px;align-items:flex-start"><div class="badge"><span class="shield num">${d.evasion.v}</span><span class="lbl">${T('Kitérés','Evasion')}</span></div><div class="badge"><span class="shield arm num">${d.armor.v}</span><span class="lbl">${T('Páncél','Armor')}</span></div><div class="badge"><span class="profdots" aria-label="${d.prof.v}">${[1,2,3,4,5,6].map(i=>`<i class="${i<=d.prof.v?'on':''}"></i>`).join('')}</span><span class="lbl">${T('Jártasság','Proficiency')} ${d.prof.v}</span></div></div></div>
+  <div class="vital"><div class="badges"><div class="badge"><span class="shield num">${d.evasion.v}</span><span class="lbl">${T('Kitérés','Evasion')}</span></div><div class="badge"><span class="shield arm num">${d.armor.v}</span><span class="lbl">${T('Páncél','Armor')}</span></div><div class="badge"><span class="profdots" aria-label="${d.prof.v}">${[1,2,3,4,5,6].map(i=>`<i class="${i<=d.prof.v?'on':''}"></i>`).join('')}</span><span class="lbl">${L('Jártasság','Proficiency')} ${d.prof.v}${lang==='hu'?'<i class="en">Proficiency</i>':''}</span></div></div></div>
  </div>
  ${c.hp>=d.hpS.v?`<div class="note d" style="margin-bottom:14px"><b>${T('Utolsó Életpont megjelölve – halálmozdulat','Last Hit Point marked – death move')}</b>. ${L('Válassz a Játék fülön.','Choose one on the Play tab.')}</div>`:''}`}
 
