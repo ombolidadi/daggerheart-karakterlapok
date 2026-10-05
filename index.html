@@ -334,7 +334,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 const RULES=window.DH_RULES||[];
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='1.6';
+const APP_VERSION='1.7';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -443,7 +443,15 @@ const dmgStr=(w,d)=>`${d.prof.v}d${w.die}${w.bonus?sgn(w.bonus).replace('−','-
 /* ============ persistence ============ */
 const LS='dh-sheets-v1';let db=null,base=null,dirty=new Set(),flushT=null;
 function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LS));if(j&&Array.isArray(j.chars))S=Object.assign(S,j)}catch(e){}}
-function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}fileSoon()}
+function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}fileSoon();natSoon()}
+/* ---- native macOS app: the Swift shell keeps the save file, shows save/print dialogs ---- */
+const NATIVE=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.dh);
+const nsx={at:0,err:''};let natT=null;
+const nat=(type,data)=>{try{window.webkit.messageHandlers.dh.postMessage(Object.assign({type},data||{}))}catch(e){}};
+function natSave(){clearTimeout(natT);natT=null;if(NATIVE)nat('save',{json:filePayload()})}
+function natSoon(){if(!NATIVE)return;clearTimeout(natT);natT=setTimeout(natSave,600)}
+window.dhNativeSaved=(ok,msg)=>{if(ok)nsx.at=Date.now();nsx.err=ok?'':(msg||'error');setSync(ui.sync)};
+window.dhFlushNow=()=>{if(natT)natSave()};
 /* ---- save file on this computer (File System Access API: Chrome / Edge on desktop) ---- */
 const FS_OK=!(window.claude&&window.claude.use)&&typeof window.showSaveFilePicker==='function';
 const fsx={h:null,perm:'none',name:'',at:0,busy:false,again:false,err:''};let fileT=null;
@@ -453,7 +461,8 @@ const filePayload=()=>JSON.stringify({app:'daggerheart-karakterlapok',version:AP
 // merge characters from a save file: unknown ones are added, and of two copies the more recently edited wins
 function mergeChars(list,deleted){let n=0;S.deleted=[...new Set([...S.deleted,...(deleted||[])])];S.chars=S.chars.filter(c=>!S.deleted.includes(c.id));
  for(const x of list||[]){if(!x||!x.id||!CLASSES[x.classId]||S.deleted.includes(x.id))continue;const i=S.chars.findIndex(c=>c.id===x.id);
-  if(i<0){S.chars.push(normalize(x));n++}else if((x.updatedAt||0)>(S.chars[i].updatedAt||0)){S.chars[i]=normalize(x);n++}}
+  const full=()=>normalize(Object.assign(newChar(),{creating:null},x));   // missing fields get defaults, so a hand-edited or older file still loads
+  if(i<0){S.chars.push(full());n++}else if((x.updatedAt||0)>(S.chars[i].updatedAt||0)){S.chars[i]=full();n++}}
  if(n&&S.chars.some(c=>!c.example))S.chars=S.chars.filter(c=>!c.example);
  if(!S.chars.length)S.chars.push(exampleChar());if(!S.chars.find(c=>c.id===S.cur))S.cur=S.chars[0].id;return n}
 async function fileRead(){const t=await(await fsx.h.getFile()).text();if(!t.trim())return 0;let o;try{o=JSON.parse(t)}catch(e){throw new Error('foreign')}
@@ -473,9 +482,9 @@ async function initFile(){if(!FS_OK)return;try{const h=await idb('readonly',st=>
 async function filePick(open){try{const h=open?(await window.showOpenFilePicker({types:FS_TYPES}))[0]:await window.showSaveFilePicker({suggestedName:'daggerheart-karakterek.json',types:FS_TYPES});
   if(await fileLink(h,true))await idb('readwrite',st=>st.put(h,'handle')).catch(()=>{})}catch(e){/* picker closed */}}
 function touch(c){c=c||cur();if(c){c.updatedAt=Date.now();delete c.example;dirty.add(c.id)}saveLocal();if(db){setSync('saving');clearTimeout(flushT);flushT=setTimeout(flush,1500)}}
-const syncCls=()=>fsx.h?(fsx.perm==='granted'&&!fsx.err?'ok':'bad'):ui.sync==='saved'?'ok':ui.sync==='error'?'bad':'';
+const syncCls=()=>NATIVE?(nsx.err?'bad':'ok'):fsx.h?(fsx.perm==='granted'&&!fsx.err?'ok':'bad'):ui.sync==='saved'?'ok':ui.sync==='error'?'bad':'';
 function setSync(s){ui.sync=s;const el=$('#sync');if(el){el.className='chip '+syncCls();el.textContent=syncText()}}
-const syncText=()=>fsx.h?(fsx.perm!=='granted'?L('Mentésfájl: engedély kell','Save file: needs permission'):fsx.err?L('A fájlba mentés nem sikerült','Saving to the file failed'):fsx.busy||!fsx.at?L('Mentés fájlba…','Saving to file…'):`${L('Fájlba mentve','Saved to file')}: ${fsx.name} · ${hhmm(fsx.at)}`):({saved:L('Mentve a fiókodba','Saved to your account'),saving:L('Mentés…','Saving…'),local:IN_ARTIFACT?L('Mentve ezen az eszközön','Saved on this device'):L('Mentve ebben a böngészőben','Saved in this browser'),error:L('Fiókmentés sikertelen – helyben megvan','Account save failed – kept locally')}[ui.sync]);
+const syncText=()=>NATIVE?(nsx.err?L('A fájlba mentés nem sikerült','Saving to the file failed'):nsx.at?`${L('Fájlba mentve','Saved to file')} · ${hhmm(nsx.at)}`:L('Mentés a gépre bekapcsolva','Saving to this Mac')):fsx.h?(fsx.perm!=='granted'?L('Mentésfájl: engedély kell','Save file: needs permission'):fsx.err?L('A fájlba mentés nem sikerült','Saving to the file failed'):fsx.busy||!fsx.at?L('Mentés fájlba…','Saving to file…'):`${L('Fájlba mentve','Saved to file')}: ${fsx.name} · ${hhmm(fsx.at)}`):({saved:L('Mentve a fiókodba','Saved to your account'),saving:L('Mentés…','Saving…'),local:IN_ARTIFACT?L('Mentve ezen az eszközön','Saved on this device'):L('Mentve ebben a böngészőben','Saved in this browser'),error:L('Fiókmentés sikertelen – helyben megvan','Account save failed – kept locally')}[ui.sync]);
 async function flush(){if(!db)return;const ids=[...dirty];dirty.clear();try{
   for(const id of ids){const c=S.chars.find(x=>x.id===id);if(!c||c.example)continue;await db.collection(base).doc(id).set({kind:'char',name:c.name||'',updatedAt:c.updatedAt,json:JSON.stringify(c)})}
   setSync('saved')}catch(e){ids.forEach(i=>dirty.add(i));setSync('error')}}
@@ -516,7 +525,7 @@ const TABS=[['sheet',b('Karakterlap','Sheet')],['play',b('Játék','Play')],['ca
 function renderBar(){const c=cur();
  $('#bar').innerHTML=`<div class="row"><h1>Daggerheart ${L('Karakterlapok','Character Sheets')}<span class="ver" title="${L('Az app verziója','App version')}">v${APP_VERSION}</span></h1>
   <span id="sync" class="chip ${syncCls()}">${syncText()}</span>
-  <button class="btn sm pri" data-act="saveNow" title="${L('Az aktuális állapot azonnali mentése','Save the current state right now')}">${FS_OK&&!fsx.h?L('Mentés fájlba…','Save to file…'):FS_OK&&fsx.perm!=='granted'?L('Mentésfájl csatlakoztatása','Reconnect save file'):!FS_OK&&!IN_ARTIFACT?L('Biztonsági mentés','Download backup'):L('Mentés most','Save now')}</button>
+  <button class="btn sm pri" data-act="saveNow" title="${L('Az aktuális állapot azonnali mentése','Save the current state right now')}">${NATIVE?L('Mentés most','Save now'):FS_OK&&!fsx.h?L('Mentés fájlba…','Save to file…'):FS_OK&&fsx.perm!=='granted'?L('Mentésfájl csatlakoztatása','Reconnect save file'):!FS_OK&&!IN_ARTIFACT?L('Biztonsági mentés','Download backup'):L('Mentés most','Save now')}</button>
   <button class="btn sm" data-act="theme" title="${L('Téma váltása: világos → sötét → automatikus','Switch theme: light → dark → auto')}">${{light:'☀ '+L('Nappali','Light'),dark:'☾ '+L('Éjszakai','Dark')}[S.theme]||'◐ '+L('Auto téma','Auto theme')}</button>
   <button class="btn sm" data-act="lang">${lang==='hu'?'English':'Magyar'}</button></div>
  <div class="row" style="margin-top:8px"><select id="charSel" data-chg="selChar" aria-label="${L('Karakter','Character')}">${S.chars.map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${esc(x.name||L('Névtelen','Unnamed'))} · ${P(CLASSES[x.classId])} ${x.level}</option>`).join('')}</select>
@@ -900,6 +909,7 @@ async function importFile(f){if(/\.pdf$/i.test(f.name)||f.type==='application/pd
 const fileBase=c=>(c.name||'daggerheart').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w\-]+/g,'_');
 const expMsg=t=>{const m=$('#expMsg');if(m)m.textContent=t};
 async function saveFile(name,data,mime){try{
+  if(NATIVE){nat('download',{name,data:String(data)});return}
   if(IN_ARTIFACT){const dl=await window.claude.use('downloads');if(!dl)throw 0;await dl.save({filename:name,data})}
   else{const a=document.createElement('a'),u=URL.createObjectURL(new Blob([data],{type:mime}));a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
   expMsg(L('Elmentve: ','Saved: ')+name)}catch(e){expMsg(L('A fájlmentés itt nem sikerült – használd a másolást.','Saving a file did not work here – use copy instead.'))}}
@@ -908,8 +918,8 @@ function fillPrint(blk){const c=cur(),k=c.id+':'+c.updatedAt;if(typeof blk==='st
 function vImport(c){return `<div class="panel" style="margin-bottom:14px"><h2>${L('Exportálás és betöltés','Export and import')}</h2>
  <h3>${L('Karakterlap','Character sheet')}: ${esc(c.name||L('Névtelen','Unnamed'))}</h3><p class="small muted">${L('Olvasható, teljes karakterlap minden képesség- és kártyaszöveggel.','A readable, complete sheet with all feature and card text.')}</p>
  <div class="row" style="margin-top:6px">${IN_ARTIFACT?'':`<button class="btn pri" data-act="print">${L('Nyomtatás / PDF','Print / PDF')}</button>`}<button class="btn" data-act="expHtml">${L('Letöltés: HTML','Download HTML')}</button><button class="btn" data-act="expMd">${L('Letöltés: Markdown','Download Markdown')}</button><button class="btn" data-act="expMdCopy">${L('Szöveg másolása','Copy as text')}</button></div>
- ${IN_ARTIFACT?'':`<h3 style="margin-top:14px">${L('Automatikus mentés fájlba a gépeden','Automatic saving to a file on your computer')}</h3>${!FS_OK?`<p class="small muted">${L('Ebben a böngészőben nem érhető el (asztali Chrome vagy Edge kell hozzá). Itt a fenti „Biztonsági mentés” gomb tölt le egy mentésfájlt.','Not available in this browser (needs desktop Chrome or Edge). Here the “Download backup” button at the top downloads a save file.')}</p>`:fsx.h?`<p class="small">${L('Mentésfájl','Save file')}: <b>${esc(fsx.name)}</b> — ${fsx.perm==='granted'?L('minden változás után magától frissül.','updated automatically after every change.'):L('ebben a munkamenetben még nincs csatlakoztatva.','not connected in this session yet.')}</p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="saveNow">${fsx.perm==='granted'?L('Mentés most','Save now'):L('Csatlakoztatás','Reconnect')}</button><button class="btn" data-act="fileNew">${L('Másik fájlba…','Different file…')}</button><button class="btn" data-act="fileOpen">${L('Meglévő mentésfájl megnyitása','Open an existing save file')}</button><button class="btn warn" data-act="fileUnlink">${L('Leválasztás','Disconnect')}</button></div>`:`<p class="small muted">${L('Válassz egy fájlt a gépeden: az app minden változás után magától belementi az összes karaktert, és megnyitáskor onnan olvassa vissza a frissebb állapotot. Így a böngésző adatainak törlése sem viszi el a karaktereidet.','Pick a file on your computer: the app writes all characters into it after every change and reads the newer state back from it when it opens. Clearing the browser\'s data then no longer loses your characters.')}</p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="fileNew">${L('Mentésfájl létrehozása','Create a save file')}</button><button class="btn" data-act="fileOpen">${L('Meglévő mentésfájl megnyitása','Open an existing save file')}</button></div>`}`}
- <h3 style="margin-top:14px">${L('Adatmentés (újra betölthető)','Data backup (can be loaded back)')}</h3><p class="small muted">${IN_ARTIFACT?L('A karaktereid automatikusan mentődnek.','Your characters save automatically.'):L('A karaktereid ennek a böngészőnek a tárhelyén élnek. Más eszközre vagy böngészőbe JSON-fájllal viheted át őket – érdemes időnként menteni.','Your characters live in this browser\'s storage. Move them to another device or browser with a JSON file – back up now and then.')}</p>
+ ${IN_ARTIFACT?'':NATIVE?`<h3 style="margin-top:14px">${L('Automatikus mentés a gépedre','Automatic saving to your Mac')}</h3><p class="small">${L('A program minden változást magától ment ebbe a fájlba, és naponta biztonsági másolatot is tesz mellé (a „backups” mappába):','The app saves every change to this file by itself, and keeps a daily backup copy next to it (in the “backups” folder):')}<br><code style="word-break:break-all">${esc(window.DH_NATIVE_PATH||'')}</code></p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="saveNow">${L('Mentés most','Save now')}</button><button class="btn" data-act="natReveal">${L('Mentésfájl megmutatása a Finderben','Show the save file in Finder')}</button></div>`:`<h3 style="margin-top:14px">${L('Automatikus mentés fájlba a gépeden','Automatic saving to a file on your computer')}</h3>${!FS_OK?`<p class="small muted">${L('Ebben a böngészőben nem érhető el (asztali Chrome vagy Edge kell hozzá). Itt a fenti „Biztonsági mentés” gomb tölt le egy mentésfájlt.','Not available in this browser (needs desktop Chrome or Edge). Here the “Download backup” button at the top downloads a save file.')}</p>`:fsx.h?`<p class="small">${L('Mentésfájl','Save file')}: <b>${esc(fsx.name)}</b> — ${fsx.perm==='granted'?L('minden változás után magától frissül.','updated automatically after every change.'):L('ebben a munkamenetben még nincs csatlakoztatva.','not connected in this session yet.')}</p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="saveNow">${fsx.perm==='granted'?L('Mentés most','Save now'):L('Csatlakoztatás','Reconnect')}</button><button class="btn" data-act="fileNew">${L('Másik fájlba…','Different file…')}</button><button class="btn" data-act="fileOpen">${L('Meglévő mentésfájl megnyitása','Open an existing save file')}</button><button class="btn warn" data-act="fileUnlink">${L('Leválasztás','Disconnect')}</button></div>`:`<p class="small muted">${L('Válassz egy fájlt a gépeden: az app minden változás után magától belementi az összes karaktert, és megnyitáskor onnan olvassa vissza a frissebb állapotot. Így a böngésző adatainak törlése sem viszi el a karaktereidet.','Pick a file on your computer: the app writes all characters into it after every change and reads the newer state back from it when it opens. Clearing the browser\'s data then no longer loses your characters.')}</p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="fileNew">${L('Mentésfájl létrehozása','Create a save file')}</button><button class="btn" data-act="fileOpen">${L('Meglévő mentésfájl megnyitása','Open an existing save file')}</button></div>`}`}
+ <h3 style="margin-top:14px">${L('Adatmentés (újra betölthető)','Data backup (can be loaded back)')}</h3><p class="small muted">${IN_ARTIFACT?L('A karaktereid automatikusan mentődnek.','Your characters save automatically.'):NATIVE?L('Másik gépre vagy a webes változatba JSON-fájllal viheted át a karaktereidet.','Move your characters to another computer or to the web version with a JSON file.'):L('A karaktereid ennek a böngészőnek a tárhelyén élnek. Más eszközre vagy böngészőbe JSON-fájllal viheted át őket – érdemes időnként menteni.','Your characters live in this browser\'s storage. Move them to another device or browser with a JSON file – back up now and then.')}</p>
  <div class="row" style="margin-top:6px"><button class="btn" data-act="expJson">${L('Ez a karakter (.json)','This character (.json)')}</button><button class="btn" data-act="expAll">${L('Minden karakter (.json)','All characters (.json)')}</button><button class="btn" data-act="expCopy">${L('JSON másolása','Copy JSON')}</button><label class="btn">${L('Betöltés fájlból','Load from file')}<input type="file" id="impFile" accept=".json,.html,.htm,.pdf,application/json,application/pdf,text/html" hidden></label></div>
  <p class="small muted" style="margin-top:6px">${L('Betölthető: JSON-mentés, valamint az ebből az appból exportált HTML és nyomtatott PDF (ezek végén egy apró betűs adatblokk van, abból áll vissza a karakter). Más forrásból származó, pl. hivatalos kitölthető PDF-et nem tud beolvasni. A profilkép csak a JSON-mentésben utazik.','Loads: JSON backups, plus HTML exported and PDFs printed from this app (they end with a small-print data block the character is restored from). PDFs from other sources, e.g. the official form-fillable sheet, cannot be read. The portrait travels only in the JSON backup.')}</p>
  <p class="small" id="expMsg" style="margin-top:6px;min-height:1.2em"></p>
@@ -940,6 +950,7 @@ const A={
   if(!S.chars.length)S.chars.push(newChar());S.cur=S.chars[0].id;saveLocal();render()},
  toggleImp(){ui.imp=!ui.imp;render();if(ui.imp)window.scrollTo(0,0)},
  async saveNow(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
+  if(NATIVE)return natSave();
   if(IN_ARTIFACT){cur()&&dirty.add(cur().id);if(db){setSync('saving');await flush()}return}
   if(!FS_OK)return saveFile('daggerheart-karakterek.json',filePayload(),'application/json');
   if(!fsx.h)return filePick(false);
@@ -948,7 +959,8 @@ const A={
  fileNew(){filePick(false)},
  fileOpen(){filePick(true)},
  async fileUnlink(){clearTimeout(fileT);Object.assign(fsx,{h:null,perm:'none',name:'',at:0,err:''});await idb('readwrite',st=>st.delete('handle')).catch(()=>{});render()},
- async print(){fillPrint(await packChar(cur()));window.print()},
+ async print(){fillPrint(await packChar(cur()));if(NATIVE)nat('print');else window.print()},
+ natReveal(){nat('reveal')},
  async expHtml(){const c=cur();saveFile(fileBase(c)+'.html',sheetHtml(c,await packChar(c)),'text/html')},
  expMd(){const c=cur();saveFile(fileBase(c)+'.md',sheetMd(c,derive(c)),'text/markdown')},
  expJson(){const c=cur();saveFile(fileBase(c)+'.json',JSON.stringify(c,null,1),'application/json')},
@@ -1093,8 +1105,9 @@ function exampleChar(){const c=newChar();Object.assign(c,{example:true,creating:
  const t=Date.now()-864e5;c.sessions=[{id:uid6(),date:new Date(t).toISOString().slice(0,10),title:L('Session 1 – A beomlott torony','Session 1 – The fallen tower'),level:1,summary:L('A csapat megtalálta a torony bejáratát, és legyőzte a csontvázőrt. Szintet léptünk.','The party found the tower entrance and beat the skeletal warden. We levelled up.'),npcs:L('Borbála, a révész','Borbála the ferrywoman'),loot:L('1 marék arany, egy rúnás kulcs','1 handful of gold, a runed key'),
   events:[{t:t,x:L('Session elindítva','Session started')},{t:t+6e5,x:L('Tudás dobás: 17 (9/6) – Reménnyel','Knowledge roll: 17 (9/6) – with Hope')},{t:t+15e5,x:L('7 sebzés elszenvedve → 1 ÉP (páncélhely jelölve)','Took 7 damage → 1 HP (Armor Slot marked)')},{t:t+72e5,x:L('Szintlépés: 2. szint','Levelled up to 2')}]}];
  return c}
-function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);if(!S.chars.length){const c=exampleChar();S.chars=[c];S.cur=c.id}lang=S.lang||'hu';
- const h=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===h))ui.tab=h;render();initRemote();initFile();
+function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);
+ if(NATIVE&&window.DH_NATIVE_DATA){try{const o=JSON.parse(window.DH_NATIVE_DATA);mergeChars(Array.isArray(o)?o:o.chars||[],o.deleted)}catch(e){nsx.err='read'}}if(!S.chars.length){const c=exampleChar();S.chars=[c];S.cur=c.id}lang=S.lang||'hu';
+ const h=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===h))ui.tab=h;render();initRemote();initFile();if(NATIVE&&!nsx.err&&S.chars.some(c=>!c.example))natSoon();
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&fileT)fileWrite()});
  window.addEventListener('beforeprint',()=>fillPrint());
  if(!IN_ARTIFACT&&'serviceWorker' in navigator&&location.protocol==='https:'){const sw=navigator.serviceWorker,had=!!sw.controller;let done=false;

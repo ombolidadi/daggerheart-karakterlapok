@@ -10,6 +10,14 @@ Kétnyelvű (magyar–angol) Daggerheart karakteralkotó és karakterlap-kezelő
 2. A repóban: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, Branch: `main`, mappa: `/ (root)`, majd **Save**.
 3. Egy-két perc múlva az app elérhető a `https://<felhasználónév>.github.io/<repó-név>/` címen. Telefonon a böngésző menüjéből „Hozzáadás a kezdőképernyőhöz”.
 
+## macOS-program
+
+A [Releases](https://github.com/ombolidadi/daggerheart-karakterlapok/releases) oldalról letölthető a `Daggerheart-Karakterlapok-macOS.zip`: kicsomagolás után a **Daggerheart Karakterlapok.app** az Alkalmazások mappába húzható. Önálló ablakban fut, internet nélkül is, és a karaktereket magától menti ide: `~/Library/Application Support/Daggerheart Karakterlapok/karakterek.json` (naponta biztonsági másolattal a `backups` mappában).
+
+A program nincs Apple fejlesztői azonosítóval aláírva, ezért az első indításnál a macOS figyelmeztet. Megnyitás: jobb klikk az appon → **Megnyitás**, vagy Rendszerbeállítások → Adatvédelem és biztonság → **Megnyitás mindenképp**.
+
+Saját fordítás: `bash macos/build-app.sh` (Xcode Command Line Tools kell hozzá); az eredmény a `dist/` mappába kerül.
+
 ## Fejlesztés
 
 - `src/app.html` – az alkalmazás (HTML + CSS + JS egy fájlban).

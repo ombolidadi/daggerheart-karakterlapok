@@ -64,6 +64,26 @@ def png(n):
     return b'\x89PNG\r\n\x1a\n' + ch(b'IHDR', struct.pack('>IIBBBBB', n, n, 8, 2, 0, 0, 0)) + ch(b'IDAT', zlib.compress(bytes(rows), 9)) + ch(b'IEND', b'')
 for n in (192, 512):
     (R / f'icon-{n}.png').write_bytes(png(n))
+
+def mac_icon(n=1024):
+    """macOS app icon: rounded square with the usual margin, transparent corners."""
+    bg, gold, vio = (19, 17, 29), (230, 185, 78), (140, 110, 220)
+    m, r = n * .098, n * .18          # margin and corner radius
+    rows = bytearray()
+    for y in range(n):
+        rows.append(0)
+        for x in range(n):
+            dx = max(m + r - x, x - (n - m - r), 0); dy = max(m + r - y, y - (n - m - r), 0)
+            inside = m <= x < n - m and m <= y < n - m and dx * dx + dy * dy <= r * r
+            if not inside:
+                rows += b'\x00\x00\x00\x00'; continue
+            u, v = (x + .5) / n - .5, (y + .5) / n - .5
+            a, b = abs(u + .075) + abs(v) * .62, abs(u - .075) + abs(v) * .62
+            rows += bytes(gold if a < .17 else vio if b < .17 else bg) + b'\xff'
+    ch = lambda t, d: struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+    return b'\x89PNG\r\n\x1a\n' + ch(b'IHDR', struct.pack('>IIBBBBB', n, n, 8, 6, 0, 0, 0)) + ch(b'IDAT', zlib.compress(bytes(rows), 6)) + ch(b'IEND', b'')
+if (R / 'macos').is_dir() and not (R / 'macos' / 'icon-1024.png').exists():
+    (R / 'macos' / 'icon-1024.png').write_bytes(mac_icon())
 (R / 'icon.svg').write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="18" fill="#13111d"/><path d="M59 18 79 50 59 82 39 50z" fill="#8c6edc"/><path d="M41 18 61 50 41 82 21 50z" fill="#e6b94e"/></svg>\n')
 (R / 'manifest.webmanifest').write_text(json.dumps({
  'name': 'Daggerheart Karakterlapok', 'short_name': 'DH Lapok', 'start_url': './', 'scope': './', 'display': 'standalone',
