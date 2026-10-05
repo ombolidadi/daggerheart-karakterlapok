@@ -19,7 +19,7 @@ Kétnyelvű (magyar–angol) Daggerheart karakteralkotó és karakterlap-kezelő
 
 ## Adatok és mentés
 
-A karakterek csak abban a böngészőben léteznek, ahol létrehoztad őket. Másik eszközre az **Exportálás / betöltés** panel JSON-fájljával vihetők át; érdemes időnként biztonsági mentést készíteni.
+Asztali Chrome-ban vagy Edge-ben a fenti **Mentés fájlba…** gombbal kiválasztható egy mentésfájl a gépeden: az app minden változás után magától belementi az összes karaktert, megnyitáskor pedig onnan olvassa vissza a frissebb állapotot. Enélkül a karakterek csak abban a böngészőben léteznek, ahol létrehoztad őket. Másik eszközre az **Exportálás / betöltés** panel JSON-fájljával vihetők át; érdemes időnként biztonsági mentést készíteni.
 
 ## Licenc és forrás
 
