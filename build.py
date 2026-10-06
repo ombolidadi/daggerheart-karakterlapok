@@ -49,6 +49,111 @@ for s in secs:
     s['m'] = s['m'].strip()
 (R / 'data' / 'srd-rules.js').write_text('window.DH_RULES=' + json.dumps(secs, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
 
+# ---- D&D 5e (SRD 5.2.1, CC-BY-4.0): structured data + rulebook, loaded by the app only when needed
+def build_dnd():
+    D = R / 'srd-source' / 'dnd'
+    JJ = lambda f: json.load(open(D / 'json' / (f + '.json'), encoding='utf-8'))
+    fix = lambda t: (t or '').replace('â€™', '’').replace('â€œ', '“').replace('â€', '”').replace('- pended', 'pended')
+    feats = {f['index']: f for f in JJ('Features')}
+    levels = JJ('Levels')
+    subs = {x['class']['index']: x for x in JJ('Subclasses')}
+    traits = {t['index']: t for t in JJ('Traits')}
+    classes = []
+    for c in JJ('Classes'):
+        lv = sorted([l for l in levels if l['class']['index'] == c['index'] and not l.get('subclass')], key=lambda l: l['level'])
+        L = []
+        for l in lv:
+            sc = l.get('spellcasting')
+            L.append({'f': [{'n': f['name'], 'd': fix(feats[f['index']]['description'])} for f in l['features'] if f['index'] in feats],
+                      'cs': l.get('class_specific') or {},
+                      'sc': None if not sc else {'c': sc.get('cantrips_known', 0), 'p': sc.get('prepared_spells', 0),
+                                                 's': [sc.get(f'spell_slots_level_{i}', 0) for i in range(1, 10)]}})
+        pc = c['proficiency_choices']
+        sub = subs.get(c['index'])
+        classes.append({
+            'id': c['index'], 'name': c['name'], 'hd': c['hit_die'], 'saves': [x['index'] for x in c['saving_throws']],
+            'skillN': pc[0]['choose'], 'skillFrom': [o['item']['index'].replace('skill-', '') for o in pc[0]['from']['options'] if o.get('item')],
+            'choices': [fix(x['desc']) for x in pc[1:]],
+            'profs': [x['name'] for x in c['proficiencies'] if not x['name'].startswith('Saving Throw')],
+            'primary': c['primary_ability']['desc'], 'equip': [fix(o['desc']) for o in c.get('starting_equipment_options', [])],
+            'spell': (c.get('spellcasting') or {}).get('spellcasting_ability', {}).get('index'),
+            'levels': L,
+            'sub': None if not sub else {'name': sub['name'], 'summary': sub.get('summary', ''), 'desc': fix(sub.get('description', '')),
+                                         'features': [{'n': f['name'], 'level': f['level'], 'd': fix(f['description'])} for f in sub['features']]}})
+    tr = lambda refs: [{'n': r['name'], 'd': fix(traits.get(r['index'], {}).get('description', ''))} for r in refs or []]
+    subsp = JJ('Subspecies')
+    species = [{'id': x['index'], 'name': x['name'], 'size': x.get('size') or 'Small or Medium', 'speed': x['speed'], 'traits': tr(x.get('traits')),
+                'sub': [{'id': y['index'], 'name': y['name'], 'traits': tr(y.get('traits'))} for y in subsp if y['species']['index'] == x['index']]}
+               for x in JJ('Species')]
+    bgs = [{'id': x['index'], 'name': x['name'], 'abil': [a['index'] for a in x['ability_scores']], 'featId': x['feat']['index'],
+            'feat': x['feat']['name'] + (f" ({x['feat']['note']})" if x['feat'].get('note') else ''),
+            'skills': [q['index'].replace('skill-', '') for q in x['proficiencies'] if q['index'].startswith('skill-')],
+            'tools': [q['name'].replace('Tool: ', '') for q in x['proficiencies'] if not q['index'].startswith('skill-')],
+            'equip': [fix(o['desc']) for o in x['equipment_options']]} for x in JJ('Backgrounds')]
+    weapons, armor, gear = [], [], []
+    for e in JJ('Equipment'):
+        cats = [k['index'] for k in e['equipment_categories']]
+        cost = f"{e['cost']['quantity']} {e['cost']['unit'].upper()}" if e.get('cost') else ''
+        if e.get('damage'):
+            weapons.append({'id': e['index'], 'name': e['name'], 'martial': 'martial-weapons' in cats, 'ranged': 'ranged-weapons' in cats or any('ranged' in k for k in cats),
+                            'dice': e['damage']['damage_dice'], 'dtype': e['damage']['damage_type']['name'], 'props': [q['name'] for q in e.get('properties', [])],
+                            'mastery': (e.get('mastery') or {}).get('name', ''), 'range': e.get('range') or {}, 'two': (e.get('two_handed_damage') or {}).get('damage_dice', ''), 'cost': cost})
+        elif e.get('armor_class'):
+            a = e['armor_class']
+            armor.append({'id': e['index'], 'name': e['name'], 'cat': 'shield' if 'shields' in cats else [k for k in cats if k.endswith('-armor')][0].replace('-armor', ''),
+                          'base': a['base'], 'dex': bool(a.get('dex_bonus')), 'max': a.get('max_bonus'), 'str': e.get('str_minimum', 0), 'stealth': bool(e.get('stealth_disadvantage')), 'cost': cost})
+        else:
+            desc = fix(e.get('description', '')) or ', '.join(f"{k['quantity']}× {k['item']['name']}" for k in e.get('contents', []))
+            gear.append({'name': e['name'], 'cost': cost, 'desc': desc})
+    out = {
+        'classes': classes, 'species': species, 'backgrounds': bgs,
+        'feats': [{'id': f['index'], 'name': f['name'], 'type': f['type'], 'd': fix(f['description'])} for f in JJ('Feats')],
+        'skills': [{'id': k['index'], 'name': k['name'], 'abil': k['ability_score']['index'], 'd': fix(k['description'])} for k in JJ('Skills')],
+        'spells': [{'id': x['index'], 'name': x['name'], 'lvl': x['level'], 'school': x['school']['name'], 'cls': [k['index'] for k in x['classes']],
+                    'time': x['casting_time'], 'rit': bool(x.get('ritual')), 'range': x['range'], 'comp': ', '.join(x.get('components', [])) + (f" ({fix(x['material'])})" if x.get('material') else ''),
+                    'dur': x['duration'], 'conc': bool(x.get('concentration')), 'd': fix(x['description']), 'hi': fix(x.get('higher_level', ''))} for x in JJ('Spells')],
+        'weapons': weapons, 'armor': armor, 'gear': gear,
+        'conditions': [{'name': k['name'], 'd': fix(k['description'])} for k in JJ('Conditions')],
+        'masteries': {k['name']: fix(k['description']) for k in JJ('Weapon-Mastery-Properties')},
+        'wprops': {k['name']: fix(k['description']) for k in JJ('Weapon-Properties')},
+    }
+    (R / 'data' / 'dnd-data.js').write_text('window.DND_SRD=' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
+
+    # rulebook: the markdown chapters, HTML tables turned into pipe tables, split at headings (levels 1-4)
+    def table(m):
+        rows = []
+        for row in re.findall(r'<tr[^>]*>(.*?)</tr>', m.group(0), re.S):
+            cells = [re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', c)).strip().replace('|', '/') for c in re.findall(r'<t[hd][^>]*>(.*?)</t[hd]>', row, re.S)]
+            if cells: rows.append(cells)
+        if not rows: return ''
+        n = max(len(r) for r in rows)
+        rows = [r + [''] * (n - len(r)) for r in rows]
+        return '\n\n' + '\n'.join(['| ' + ' | '.join(rows[0]) + ' |', '|' + ' --- |' * n] + ['| ' + ' | '.join(r) + ' |' for r in rows[1:]]) + '\n\n'
+    order = ['playing-the-game', 'character-creation', 'classes', 'character-origins', 'feats', 'equipment', 'spells', 'rules-glossary',
+             'gameplay-toolbox', 'magic-items', 'monsters', 'monsters-A-Z', 'animals']
+    secs, cur = [], None
+    for name in order:
+        t = open(D / 'md' / (name + '.md'), encoding='utf-8').read().replace('\r', '')
+        t = re.sub(r'<table.*?</table>', table, t, flags=re.S)
+        t = re.sub(r'<br\s*/?>', ' ', t)
+        t = re.sub(r'<hr[^>]*>', '', t)
+        t = re.sub(r'</?(?:div|span|p|a|sup|sub|small|center|details|summary)[^>]*>', '', t)
+        for line in t.split('\n'):
+            m = re.match(r'^(#{1,4}) (.+)$', line)
+            if m:
+                cur = {'l': len(m.group(1)), 't': m.group(2).strip(), 'm': ''}
+                secs.append(cur)
+            elif cur is not None:
+                cur['m'] += line + '\n'
+    for x in secs:
+        x['m'] = re.sub(r'\n{3,}', '\n\n', x['m']).strip()
+    (R / 'data' / 'dnd-rules.js').write_text('window.DND_RULES=' + json.dumps(secs, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
+    return len(out['spells']), len(secs)
+if (R / 'srd-source' / 'dnd' / 'json').is_dir():
+    print('dnd:', build_dnd())
+if (R / 'src' / 'dnd.js').exists():
+    (R / 'dnd.js').write_text((R / 'src' / 'dnd.js').read_text(encoding='utf-8'), encoding='utf-8')
+
 # ---- icons
 def png(n):
     bg, gold, vio = (19, 17, 29), (230, 185, 78), (140, 110, 220)

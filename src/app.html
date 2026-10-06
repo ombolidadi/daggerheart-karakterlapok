@@ -178,6 +178,26 @@ blockquote{margin:0;padding:6px 12px;border-left:3px solid var(--fear);backgroun
  #printArea .dhdata{font:5.5pt/1.15 "Courier New",monospace;word-break:break-all;color:#777;break-inside:avoid;font-variant-ligatures:none;margin-top:16px} #printArea .pport{float:right;width:120px;border:2px solid #999;border-radius:8px;margin:0 0 8px 12px}
  #printArea blockquote{display:block;background:none;border-left:2px solid #999;color:#444;font-style:italic;margin:4px 0;padding:0 0 0 10px} #printArea ul{margin:4px 0;padding-left:20px} #printArea .scroll{overflow:visible}
 }
+.eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.homehead{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.gamesel{display:inline-flex;flex-wrap:wrap;border:2px solid var(--ink);border-radius:10px;overflow:hidden}
+.gamesel button{padding:10px 24px;border:0;background:var(--raised);font-family:var(--display);font-weight:800;font-size:1.3rem;cursor:pointer;color:var(--muted)}
+.gamesel button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.btn.big{padding:9px 16px;font-size:1.02rem}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:14px}
+.ccard{display:flex;gap:12px;align-items:center;text-align:left;border:0;border-radius:10px;padding:12px 14px;background:linear-gradient(115deg,var(--c1),var(--c2));color:#fff;cursor:pointer;min-width:0;box-shadow:0 2px 0 var(--line)}
+.ccard:hover{filter:brightness(1.08)}
+.cport{flex:0 0 auto;width:56px;height:70px;border-radius:28px 28px 8px 8px;border:2px solid #fff;overflow:hidden;display:grid;place-items:center;background:rgba(0,0,0,.25);font-family:var(--display);font-size:1.7rem;font-weight:800}
+.cport img{width:100%;height:100%;object-fit:cover;display:block}
+.cinfo{display:flex;flex-direction:column;gap:2px;min-width:0} .cinfo b{font-family:var(--display);font-size:1.25rem;line-height:1.1;overflow-wrap:anywhere} .cinfo span{font-size:.92rem} .cinfo .cmeta{font-size:.8rem;opacity:.85}
+.skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,215px),1fr));gap:1px 14px}
+.skill{display:flex;align-items:center;gap:7px;min-width:0} .skill.off .sk{color:var(--muted)}
+.dot{flex:0 0 auto;width:15px;height:15px;border-radius:50%;border:2px solid var(--muted);background:none;cursor:pointer;padding:0}
+.dot.p1{background:var(--ink);border-color:var(--ink)} .dot.p2{background:var(--hope);border-color:var(--hope);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--hope)}
+.sk{flex:1;min-width:0;text-align:left;background:none;border:0;padding:4px 0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .sk:hover{text-decoration:underline}
+.hpbar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:6px} .hpbar i{display:block;height:100%;background:var(--ok)}
+.dfeat{border-bottom:1px dashed var(--line);padding:5px 0} .dfeat:last-of-type{border-bottom:0} .dfeat>summary{font-size:1rem} details.dfeat[open]>summary{margin-bottom:6px}
+.profbox small{font-size:.8rem;color:var(--muted)}
 @media (prefers-reduced-motion:no-preference){ .die{animation:pop .25s ease-out} @keyframes pop{from{transform:scale(.6) rotate(-20deg)}to{transform:none}} }
 </style>
 
@@ -320,9 +340,9 @@ const COMM={
 
 /* ============ SRD catalogs (data/srd-data.js, data/srd-rules.js) ============ */
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
-const RULES=window.DH_RULES||[];
+let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='1.7';
+const APP_VERSION='2.0';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -359,7 +379,7 @@ for(const k in COMM){const x=SRD.communities[COMM[k].en];if(!x)continue;COMM[k].
 // characters saved by the first version of this sheet stored catalog indexes; convert them
 const OLDW=[,['Broadsword','Longsword','Battleaxe','Greatsword','Mace','Warhammer','Dagger','Quarterstaff','Cutlass','Rapier','Halberd','Spear','Shortbow','Crossbow','Longbow','Arcane Gauntlets','Hallowed Axe','Glowing Rings','Hand Runes','Returning Blade','Shortstaff','Dualstaff','Scepter','Wand','Greatstaff'],['Shortsword','Round Shield','Tower Shield','Small Dagger','Whip','Grappler','Hand Crossbow']];
 const OLDA=['Gambeson Armor','Leather Armor','Chainmail Armor','Full Plate Armor'],OLDP=['','Improved ','Advanced ','Legendary '];
-function normalize(c){
+function normalize(c){if(c.game==='dnd')return dNormalize(c);
  for(const k of ['primary','secondary']){const w=c[k];if(w&&w.name==null){const n=OLDP[(w.tier||1)-1]+((OLDW[w.slot]||[])[w.key]||'');const f=wFind(n);c[k]=f?Object.assign(mkWeapon(f),{custom:w.custom||''}):Object.assign(w,{name:n||'?',featName:'',featText:''})}}
  if(c.armor&&c.armor.name==null){const n=OLDP[(c.armor.tier||1)-1]+(OLDA[c.armor.key]||'');const f=aFind(n);c.armor=f?Object.assign(mkArmor(f),{custom:c.armor.custom||''}):Object.assign(c.armor,{name:n||'?',featName:'',featText:''})}
  (c.cards||[]).forEach(k=>{const i=cardInfo(k);if(i){k.type=i.type;k.recall=i.recall;k.level=i.level}else k.custom=true;if(k.notes==null)k.notes=k.text||'';delete k.text});
@@ -381,10 +401,10 @@ const CONDS=[{id:'hidden',n:b('Rejtőzködő','Hidden'),t:b('Az ellened irányul
 const tierOf=l=>l<2?1:l<5?2:l<8?3:4;
 
 /* ============ state ============ */
-let S={chars:[],cur:null,lang:'hu',theme:'auto',deleted:[]};
+let S={chars:[],cur:null,lang:'hu',theme:'auto',game:'dh',deleted:[]};
 const HOST_THEME=document.documentElement.getAttribute('data-theme');
 function applyTheme(){const r=document.documentElement;if(S.theme==='light'||S.theme==='dark')r.setAttribute('data-theme',S.theme);else if(HOST_THEME)r.setAttribute('data-theme',HOST_THEME);else r.removeAttribute('data-theme')}
-const ui={tab:'sheet',wTier:{},rule:{q:'',ch:0,hl:null},roll:{trait:'agi',exps:[],adv:0,mod:0,react:false,diff:''},last:null,dmg:null,intake:{amt:'',armor:false},rest:null,lvl:null,cardDom:null,confirm:null,imp:false,gen:'',sync:'local'};
+const ui={view:'home',tab:'sheet',wTier:{},rule:{q:'',ch:0,hl:null},roll:{trait:'agi',exps:[],adv:0,mod:0,react:false,diff:''},last:null,dmg:null,intake:{amt:'',armor:false},rest:null,lvl:null,cardDom:null,confirm:null,imp:false,gen:'',sync:'local'};
 const cur=()=>S.chars.find(c=>c.id===S.cur)||S.chars[0];
 
 const mkWeapon=w=>w?{...w,custom:''}:null,mkArmor=a=>a?{...a,custom:''}:null;
@@ -396,7 +416,7 @@ function newChar(){const t=Date.now();return {id:'c-'+uid6(),createdAt:t,updated
  desc:'',background:'',connections:'',notes:[{id:uid6(),title:L('Általános','General'),body:''}],sessions:[],activeSession:null,rolls:[]}}
 
 /* ============ derived stats ============ */
-function derive(c){
+function derive(c){if(!c)return null;if(c.game==='dnd')return dDerive(c);
  const cls=CLASSES[c.classId],lvl=c.level,tier=tierOf(lvl);
  const adv=c.levelUps.flatMap(l=>l.adv.map(a=>({...a,level:l.level})));
  const cnt=t=>adv.filter(a=>a.type===t).length;
@@ -448,8 +468,8 @@ const idb=(mode,fn)=>new Promise((ok,no)=>{const o=indexedDB.open('dh-sheets',1)
 const filePayload=()=>JSON.stringify({app:'daggerheart-karakterlapok',version:APP_VERSION,savedAt:new Date().toISOString(),chars:S.chars.filter(c=>!c.example),deleted:S.deleted},null,1);
 // merge characters from a save file: unknown ones are added, and of two copies the more recently edited wins
 function mergeChars(list,deleted){let n=0;S.deleted=[...new Set([...S.deleted,...(deleted||[])])];S.chars=S.chars.filter(c=>!S.deleted.includes(c.id));
- for(const x of list||[]){if(!x||!x.id||!CLASSES[x.classId]||S.deleted.includes(x.id))continue;const i=S.chars.findIndex(c=>c.id===x.id);
-  const full=()=>normalize(Object.assign(newChar(),{creating:null},x));   // missing fields get defaults, so a hand-edited or older file still loads
+ for(const x of list||[]){if(!x||!x.id||!(x.game==='dnd'||CLASSES[x.classId])||S.deleted.includes(x.id))continue;const i=S.chars.findIndex(c=>c.id===x.id);
+  const full=()=>normalize(Object.assign(x.game==='dnd'?dNewChar():newChar(),{creating:null},x));   // missing fields get defaults, so a hand-edited or older file still loads
   if(i<0){S.chars.push(full());n++}else if((x.updatedAt||0)>(S.chars[i].updatedAt||0)){S.chars[i]=full();n++}}
  if(n&&S.chars.some(c=>!c.example))S.chars=S.chars.filter(c=>!c.example);
  if(!S.chars.length)S.chars.push(exampleChar());if(!S.chars.find(c=>c.id===S.cur))S.cur=S.chars[0].id;return n}
@@ -510,28 +530,47 @@ const featBlock=(src,f)=>`<div class="feat"><span class="src">${src}</span><h3>$
 
 /* ============ render: chrome ============ */
 const TABS=[['sheet',b('Karakterlap','Sheet')],['play',b('Játék','Play')],['cards',b('Kártyák','Cards')],['gear',b('Felszerelés','Gear')],['level',b('Fejlődés','Progress')],['journal',b('Napló','Journal')],['notes',b('Jegyzetek','Notes')],['rules',b('Szabályok','Rules')]];
-function renderBar(){const c=cur();
- $('#bar').innerHTML=`<div class="row"><h1>Daggerheart ${L('Karakterlapok','Character Sheets')}<span class="ver" title="${L('Az app verziója','App version')}">v${APP_VERSION}</span></h1>
+const GAMES=[['dh','Daggerheart'],['dnd','D&D 5e']];
+const gameName=g=>g==='dnd'?'D&D 5e':'Daggerheart';
+const charCls=x=>x.game==='dnd'?(typeof DND!=='undefined'&&DND&&DND.cls[x.classId]?dP(DND.cls[x.classId].name):x.classId):P(CLASSES[x.classId]||{hu:'?',en:'?'});
+const tabsFor=c=>c&&c.game==='dnd'?D_TABS:TABS;
+function renderBar(){const c=cur(),v=ui.view;
+ $('#bar').innerHTML=`<div class="row"><h1>${L('Karakterlapok','Character Sheets')}<span class="ver" title="${L('Az app verziója','App version')}">v${APP_VERSION}</span></h1>
   <span id="sync" class="chip ${syncCls()}">${syncText()}</span>
   <button class="btn sm pri" data-act="saveNow" title="${L('Az aktuális állapot azonnali mentése','Save the current state right now')}">${NATIVE?L('Mentés most','Save now'):FS_OK&&!fsx.h?L('Mentés fájlba…','Save to file…'):FS_OK&&fsx.perm!=='granted'?L('Mentésfájl csatlakoztatása','Reconnect save file'):!FS_OK&&!IN_ARTIFACT?L('Biztonsági mentés','Download backup'):L('Mentés most','Save now')}</button>
   <button class="btn sm" data-act="theme" title="${L('Téma váltása: világos → sötét → automatikus','Switch theme: light → dark → auto')}">${{light:'☀ '+L('Nappali','Light'),dark:'☾ '+L('Éjszakai','Dark')}[S.theme]||'◐ '+L('Auto téma','Auto theme')}</button>
   <button class="btn sm" data-act="lang">${lang==='hu'?'English':'Magyar'}</button></div>
- <div class="row" style="margin-top:8px"><select id="charSel" data-chg="selChar" aria-label="${L('Karakter','Character')}">${S.chars.map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${esc(x.name||L('Névtelen','Unnamed'))} · ${P(CLASSES[x.classId])} ${x.level}</option>`).join('')}</select>
-  <button class="btn sm pri" data-act="newChar">+ ${L('Új karakter','New character')}</button>
-  <button class="btn sm" data-act="randChar">${L('Véletlen karakter','Random character')}</button>
-  <button class="btn sm" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button></div>
- ${c.creating==null?`<nav class="tabs" role="tablist">${TABS.map(t=>`<button role="tab" aria-selected="${ui.tab===t[0]}" data-act="tab" data-t="${t[0]}">${P(t[1])}</button>`).join('')}</nav>`:''}`}
-
+ ${v==='home'?'':`<div class="row" style="margin-top:8px"><button class="btn sm" data-act="home">← ${L('Kezdőlap','Home')}</button>
+  ${v==='char'&&c?`<select id="charSel" data-chg="selChar" aria-label="${L('Karakter','Character')}">${S.chars.filter(x=>(x.game||'dh')===(c.game||'dh')).map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${esc(x.name||L('Névtelen','Unnamed'))} · ${esc(charCls(x))} ${x.level}</option>`).join('')}</select><span class="tag">${gameName(c.game||'dh')}</span>
+  <button class="btn sm" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button>`:`<b style="font-family:var(--display);font-size:1.15rem">${L('Szabálykönyv','Rulebook')} · ${gameName(S.game)}</b>`}</div>`}
+ ${v==='char'&&c&&c.creating==null?`<nav class="tabs" role="tablist">${tabsFor(c).map(t=>`<button role="tab" aria-selected="${ui.tab===t[0]}" data-act="tab" data-t="${t[0]}">${P(t[1])}</button>`).join('')}</nav>`:''}`}
+function vHome(){const g=S.game,list=S.chars.filter(c=>(c.game||'dh')===g);if(g==='dnd')dNeed('data');
+ const card=c=>{const col=c.game==='dnd'?(D_COL[c.classId]||D_COL.fighter):(CLASSES[c.classId]?CLASSES[c.classId].domains.map(x=>`var(--d-${x})`):['var(--fear)','var(--fear)']);
+  return `<button type="button" class="ccard" data-act="openChar" data-id="${c.id}" style="--c1:${col[0]};--c2:${col[1]}"><span class="cport">${c.portrait?`<img src="${c.portrait}" alt="">`:`<span>${esc((c.name||'?').trim()[0]||'?')}</span>`}</span>
+   <span class="cinfo"><b>${esc(c.name||L('Névtelen hős','Unnamed hero'))}</b><span>${esc(charCls(c))} · ${L(c.level+'. szint','level '+c.level)}</span><span class="cmeta">${c.example?L('példakarakter','example character'):c.creating!=null?L('félkész – folytasd az alkotást','unfinished – continue creating'):L('módosítva: ','edited ')+new Date(c.updatedAt||Date.now()).toLocaleDateString(lang==='hu'?'hu-HU':'en-GB')}</span></span></button>`};
+ return `<section class="blk home">
+ <div class="panel homehead"><p class="eyebrow">${T('Játékválasztó','Choose your game')}</p>
+  <div class="gamesel" role="group">${GAMES.map(x=>`<button type="button" data-act="game" data-g="${x[0]}" aria-pressed="${g===x[0]}">${x[1]}</button>`).join('')}</div>
+  <p class="small muted">${g==='dnd'?L('Az ötödik kiadás 2024-es szabályai, a szabadon felhasználható SRD 5.2.1 tartalmával (12 osztály, osztályonként egy alosztály, 9 faj, 4 háttér, 339 varázslat).','Fifth edition 2024 rules with the freely usable SRD 5.2.1 content (12 classes with one subclass each, 9 species, 4 backgrounds, 339 spells).'):L('A Daggerheart SRD 1.0 teljes tartalmával: 9 osztály, 18 alosztály, 189 tartománykártya.','With the full Daggerheart SRD 1.0: 9 classes, 18 subclasses, 189 domain cards.')}</p>
+  <div class="row homeact"><button class="btn pri big" data-act="newChar">+ ${L('Új karakter létrehozása','Create a new character')}</button>${g==='dh'?`<button class="btn big" data-act="randChar">${L('Véletlen karakter','Random character')}</button>`:''}<button class="btn big" data-act="openRules">${L('Szabálykönyv','Rulebook')}</button><button class="btn big" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button></div></div>
+ <h2>${L('Karaktereid','Your characters')} · ${gameName(g)} <span class="muted num">${list.length}</span></h2>
+ ${list.length?`<div class="cgrid">${list.map(card).join('')}</div>`:`<div class="panel"><p class="muted">${L(`Még nincs ${gameName(g)}-karaktered. Az „Új karakter létrehozása” gomb végigvezet az alkotáson.`,`No ${gameName(g)} characters yet. “Create a new character” walks you through making one.`)}</p></div>`}
+ </section>`}
 function render(){const ae=document.activeElement,aid=ae&&ae.id,pos=ae&&ae.selectionStart;
- lang=S.lang;document.documentElement.lang=lang;renderBar();const c=cur(),d=derive(c);
- let h='';
+ lang=S.lang;document.documentElement.lang=lang;if(ui.view==='char'&&!cur())ui.view='home';
+ const c=cur(),v=ui.view;if(v==='char'&&!tabsFor(c).some(t=>t[0]===ui.tab))ui.tab='sheet';
+ renderBar();let h='';
  if(ui.imp)h+=vImport(c);
  if(fsx.h&&fsx.perm!=='granted')h+=`<div class="note d row" style="margin-bottom:14px"><span class="grow">${L(`A mentésfájl (<b>${esc(fsx.name)}</b>) még nincs csatlakoztatva ebben a munkamenetben, ezért a változások most csak a böngészőbe mentődnek.`,`The save file (<b>${esc(fsx.name)}</b>) is not connected in this session yet, so changes are only saved in the browser for now.`)}</span><button class="btn pri sm" data-act="saveNow">${L('Mentésfájl csatlakoztatása','Reconnect save file')}</button></div>`;
  if(fsx.err==='foreign')h+=`<div class="note d" style="margin-bottom:14px">${L('A kiválasztott fájl nem ennek az appnak a mentése, ezért nem írtam felül. Válassz másik fájlt, vagy hozz létre újat.','The chosen file is not a save from this app, so it was left untouched. Pick another file or create a new one.')}</div>`;
- if(c.example)h+=`<div class="note" style="margin-bottom:14px">${L('Ez egy <b>példakarakter</b>, hogy lásd, mit tud a lap. Szerkeszd bátran, vagy kezdj újat a „+ Új karakter” gombbal.','This is an <b>example character</b> to show what the sheet does. Edit it freely, or start fresh with “+ New character”.')}</div>`;
- if(c.creating!=null)h+=vWizard(c,d);else h+=vVitals(c,d)+({sheet:vSheet,play:vPlay,cards:vCards,gear:vGear,level:vLevel,journal:vJournal,notes:vNotes,rules:vRules}[ui.tab])(c,d);
+ if(v==='home')h+=vHome();
+ else if(v==='rules')h+=vRules();
+ else if(c.game==='dnd'){if(!dNeed('data'))h+=dLoading('data');else{const d=dDerive(c);h+=c.creating!=null?dWizard(c,d):dVitals(c,d)+dView(c,d)}}
+ else{const d=derive(c);
+  if(c.example)h+=`<div class="note" style="margin-bottom:14px">${L('Ez egy <b>példakarakter</b>, hogy lásd, mit tud a lap. Szerkeszd bátran, vagy kezdj újat a kezdőlapon.','This is an <b>example character</b> to show what the sheet does. Edit it freely, or start fresh from the home screen.')}</div>`;
+  if(c.creating!=null)h+=vWizard(c,d);else h+=vVitals(c,d)+({sheet:vSheet,play:vPlay,cards:vCards,gear:vGear,level:vLevel,journal:vJournal,notes:vNotes,rules:vRules}[ui.tab])(c,d)}
  $('#main').innerHTML=h;
- if(ui.tab==='rules'&&ui.rule.hl&&c.creating==null)hlite($('#ruleView'),ui.rule.hl);
+ if(ui.rule.hl&&(v==='rules'||ui.tab==='rules'))hlite($('#ruleView'),ui.rule.hl);
  if(aid){const el=document.getElementById(aid);if(el&&el!==document.activeElement){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}}
 
 /* ============ vitals ============ */
@@ -782,7 +821,7 @@ function vLevel(c,d){const lv=ui.lvl;
   <p class="small" style="margin-top:8px">${T('Megjelölt tulajdonságok','Marked traits')}: ${TRAITS.filter(t=>d.marked[t.id]).map(t=>P(t)).join(', ')||'—'}${c.multiclass?` · Multiclass: <b>${P(CLASSES[c.multiclass.classId])}</b> (${P(DOMAINS[c.multiclass.domain])})`:''}</p></div></div></section>`}
 
 /* ============ journal ============ */
-function sessionReminders(c,d,end){const r=[];
+function sessionReminders(c,d,end){const r=[];if(c.game==='dnd')return r;
  if(!end){if(c.anc1==='halfling')r.push(L('Félszerzet – Szerencsehozó: a csapat minden tagja kap 1 Reményt.','Halfling – Luckbringer: everyone in the party gains a Hope.'));
   if(c.classId==='seraph')r.push(L(`Szeráf – Imakockák: dobj ${Math.max(0,d.traits[d.sub.spell].v)}d4-et.`,`Seraph – Prayer Dice: roll ${Math.max(0,d.traits[d.sub.spell].v)}d4.`));
   if(c.classId==='bard')r.push(L('Bárd – Lelkesítés: újra használható ebben a sessionben.','Bard – Rally: available again this session.'));
@@ -808,7 +847,13 @@ function vNotes(c){return `<section class="blk"><div class="grid g2"><div class=
 
 /* ============ rules reference ============ */
 const slug=t=>t.toLowerCase().replace(/&/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-const RCH=[];RULES.forEach((x,i)=>{if(x.l<=3)RCH.push(i);x.ch=RCH.length?RCH[RCH.length-1]:0;x.lc=(x.t+'\n'+x.m).toLowerCase()});
+// two rulebooks share one viewer: Daggerheart SRD (chapters at heading level ≤3) and the D&D SRD (≤2)
+function useRules(g){const src=g==='dnd'?window.DND_RULES:window.DH_RULES;if(!src||!src.length)return false;
+ if(!RSET[g]){const ch=[],lim=g==='dnd'?2:3;src.forEach((x,i)=>{if(x.l<=lim)ch.push(i);x.ch=ch.length?ch[ch.length-1]:0;x.lc=(x.t+'\n'+x.m).toLowerCase()});RSET[g]={rules:src,ch}}
+ RULES=RSET[g].rules;RCH=RSET[g].ch;if(RGAME!==g){RGAME=g;ui.rule={q:'',ch:RCH[0]||0,hl:null}}return true}
+const ruleGame=()=>ui.view==='char'&&cur()?(cur().game||'dh'):S.game;
+const ruleFoot=g=>g==='dnd'?`<p class="small muted">This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener">https://www.dndbeyond.com/srd</a>. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener">https://creativecommons.org/licenses/by/4.0/legalcode</a>. ${L('Nem hivatalos rajongói eszköz; nem áll kapcsolatban a Wizards of the Coasttal. Az SRD a teljes szabálykönyvnek csak a szabadon felhasználható része.','Unofficial fan tool; not affiliated with Wizards of the Coast. The SRD is only the freely usable part of the full rulebooks.')}</p>`
+ :`<p class="small muted">${L('A magyar szövegek ennek az alkalmazásnak a saját, nem hivatalos fordításai; vita esetén az angol eredeti az irányadó.','Hungarian texts are this app\'s own unofficial translations; the English original prevails.')}<br>This product includes materials from the Daggerheart System Reference Document 1.0, © Critical Role, LLC. under the terms of the Darrington Press Community Gaming (DPCGL) License. More information can be found at <a href="https://www.daggerheart.com" target="_blank" rel="noopener">https://www.daggerheart.com</a>. There are no previous modifications by others. ${L('Nem hivatalos rajongói eszköz; nem áll kapcsolatban a Critical Role-lal vagy a Darrington Press-szel.','Unofficial fan tool; not affiliated with Critical Role or Darrington Press.')}</p>`;
 const qToks=q=>q.toLowerCase().split(/\s+/).filter(t=>t.length>1);
 const reEsc=t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 function ruleResults(){const toks=qToks(ui.rule.q);if(!toks.length)return '';const phrase=ui.rule.q.trim().toLowerCase().replace(/\s+/g,' ');
@@ -820,31 +865,33 @@ function ruleChapter(ci){let end=RULES.length;for(const j of RCH)if(j>ci){end=j;
  for(let i=ci;i<end;i++){const x=RULES[i];h+=`<section id="rs_${i}"><h${x.l} class="mh">${esc(x.t)}</h${x.l}>${md(x.m)}</section>`}return h}
 function hlite(root,toks){if(!root||!toks||!toks.length||!document.createTreeWalker)return;const re=new RegExp('('+toks.map(reEsc).join('|')+')','gi');const tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const ns=[];while(tw.nextNode())ns.push(tw.currentNode);
  for(const n of ns){re.lastIndex=0;if(!re.test(n.nodeValue))continue;const sp=document.createElement('span');sp.innerHTML=esc(n.nodeValue).replace(re,'<mark>$1</mark>');n.replaceWith(...sp.childNodes)}}
-function vRules(){const R=(hu,en,body)=>`<div class="panel"><h3>${T(hu,en)}</h3>${body.map(x=>TX(b(x[0],x[1]))).join('<hr>')}</div>`;const r=ui.rule;
- if(!RULES.length)return `<section class="blk"><p class="note d">${L('A szabálykönyv adatfájlja (data/srd-rules.js) nem töltődött be.','The rulebook data file (data/srd-rules.js) did not load.')}</p></section>`;
+function vRules(){const g=ruleGame();if(g==='dnd'&&!dNeed('rules'))return dLoading('rules');
+ const R=(hu,en,body)=>`<div class="panel"><h3>${T(hu,en)}</h3>${body.map(x=>TX(b(x[0],x[1]))).join('<hr>')}</div>`;const ok=useRules(g),r=ui.rule;
+ if(!ok)return `<section class="blk"><p class="note d">${L('A szabálykönyv adatfájlja (data/srd-rules.js) nem töltődött be.','The rulebook data file (data/srd-rules.js) did not load.')}</p></section>`;
  const ci=RCH.indexOf(r.ch),prev=RCH[ci-1],next=RCH[ci+1];
  const nav=`<div class="row">${prev!=null?`<button class="btn sm" data-act="ruleChapGo" data-i="${prev}">← ${esc(RULES[prev].t)}</button>`:''}<span class="grow"></span>${next!=null?`<button class="btn sm" data-act="ruleChapGo" data-i="${next}">${esc(RULES[next].t)} →</button>`:''}</div>`;
  return `<section class="blk">
- <div class="panel"><h2>${L('Daggerheart alapszabályok – teljes SRD 1.0','Daggerheart core rules – full SRD 1.0')}</h2><p class="small muted" style="margin-bottom:8px">${L('A hivatalos System Reference Document teljes angol szövege, benne mind a 189 tartománykártya. Írj be egy vagy több szót (angolul), vagy válassz fejezetet.','The full text of the official System Reference Document, including all 189 domain cards. Type one or more words, or pick a chapter.')}</p>
-  <div class="row"><input type="search" id="ruleQ" class="grow" style="min-width:180px" placeholder="${L('Keresés a szabályokban, pl. „vulnerable”, „recall cost”, „Rain of Blades”…','Search the rules, e.g. “vulnerable”, “recall cost”, “Rain of Blades”…')}" value="${esc(r.q)}">
-   <select id="ruleCh" data-chg="ruleChap" style="width:auto;max-width:100%" aria-label="${L('Fejezet','Chapter')}">${RCH.map(i=>`<option value="${i}" ${i===r.ch?'selected':''}>${RULES[i].l===2?'':'   '}${esc(RULES[i].t)}</option>`).join('')}</select></div>
+ <div class="panel"><h2>${g==='dnd'?L('D&amp;D 5e alapszabályok – teljes SRD 5.2.1','D&amp;D 5e core rules – full SRD 5.2.1'):L('Daggerheart alapszabályok – teljes SRD 1.0','Daggerheart core rules – full SRD 1.0')}</h2><p class="small muted" style="margin-bottom:8px">${g==='dnd'?L('Az ötödik kiadás 2024-es szabályainak szabadon felhasználható System Reference Documentje, angolul: játékszabályok, osztályok, varázslatok, felszerelés, mágikus tárgyak és szörnyek. Írj be egy vagy több szót, vagy válassz fejezetet.','The freely usable System Reference Document of the 2024 fifth edition rules: rules of play, classes, spells, equipment, magic items and monsters. Type one or more words, or pick a chapter.'):L('A hivatalos System Reference Document teljes angol szövege, benne mind a 189 tartománykártya. Írj be egy vagy több szót (angolul), vagy válassz fejezetet.','The full text of the official System Reference Document, including all 189 domain cards. Type one or more words, or pick a chapter.')}</p>
+  <div class="row"><input type="search" id="ruleQ" class="grow" style="min-width:180px" placeholder="${g==='dnd'?L('Keresés, pl. „grappled”, „fireball”, „opportunity attack”…','Search, e.g. “grappled”, “fireball”, “opportunity attack”…'):L('Keresés a szabályokban, pl. „vulnerable”, „recall cost”, „Rain of Blades”…','Search the rules, e.g. “vulnerable”, “recall cost”, “Rain of Blades”…')}" value="${esc(r.q)}">
+   <select id="ruleCh" data-chg="ruleChap" style="width:auto;max-width:100%" aria-label="${L('Fejezet','Chapter')}">${RCH.map(i=>`<option value="${i}" ${i===r.ch?'selected':''}>${RULES[i].l<=(g==='dnd'?1:2)?'':'   '}${esc(RULES[i].t)}</option>`).join('')}</select></div>
   <div id="ruleRes">${ruleResults()}</div></div>
  <article class="panel rules" id="ruleView">${nav}${ruleChapter(r.ch)}${nav}</article>
- <details class="panel"><summary>${L('Gyors magyar összefoglaló a legfontosabb szabályokról','Quick summary of the key rules')}</summary><div class="grid g2">
+ ${g==='dnd'?'':`<details class="panel"><summary>${L('Gyors magyar összefoglaló a legfontosabb szabályokról','Quick summary of the key rules')}</summary><div class="grid g2">
  ${R('Kettősség-dobás','Duality Roll',[['Dobj 2d12-vel (Remény- és Félelem-kocka), add hozzá a tulajdonságot és a módosítókat, és vesd össze a Nehézséggel. Remény magasabb: kapsz 1 Reményt. Félelem magasabb: a KM kap 1 Félelmet. Egyforma kockák: kritikus siker – 1 Remény és 1 Stressz törlése.','Roll 2d12 (Hope and Fear Die), add the trait and modifiers, compare to the Difficulty. Hope higher: you gain a Hope. Fear higher: the GM gains a Fear. Matching dice: critical success – gain a Hope and clear a Stress.'],['Előny: +1d6, hátrány: −1d6; kioltják egymást. Tapasztalat: 1 Reményért hozzáadható. Segítség: 1 Reményért a társad előnykockát dob. Reakciódobás nem termel Reményt vagy Félelmet.','Advantage: +1d6, disadvantage: −1d6; they cancel out. Experience: spend a Hope to add it. Help an Ally: spend a Hope to roll an advantage die for them. Reaction rolls don\'t generate Hope or Fear.']])}
  ${R('Sebzés és páncél','Damage and armor',[['Sebzés < Jelentős küszöb: 1 ÉP. ≥ Jelentős: 2 ÉP. ≥ Súlyos: 3 ÉP. Egy Páncélhely jelölésével a súlyosság egy fokozattal csökken. A küszöbökhöz hozzáadódik a szinted.','Damage below Major: mark 1 HP. At or above Major: 2 HP. At or above Severe: 3 HP. Mark an Armor Slot to reduce the severity by one threshold. Your level is added to your thresholds.'],['Sebzésdobás: Jártasság × fegyverkocka + bónusz. Kritikus: a kockák lehetséges maximuma + a dobás. Ellenállás: fele sebzés; immunitás: nincs sebzés.','Damage roll: Proficiency × weapon die + bonus. Critical: maximum possible dice value + the roll. Resistance halves damage; immunity negates it.']])}
  ${R('Remény és Stressz','Hope and Stress',[['Legfeljebb 6 Reményed lehet. Költhető: Tapasztalat (1), társ segítése (1), Tag Team dobás (3, sessionönként egyszer), Remény-képesség (3).','You can hold up to 6 Hope. Spend it on: an Experience (1), Help an Ally (1), a Tag Team Roll (3, once per session), your Hope Feature (3).'],['Ha Stresszt kellene jelölnöd, de nincs hely, helyette 1 ÉP-t jelölsz. Ha az utolsó Stressz-helyed is tele, Sebezhető (Vulnerable) leszel, amíg nem törölsz legalább egyet.','If you must mark Stress but can\'t, mark 1 HP instead. When your last Stress slot is marked, you become Vulnerable until you clear at least one.']])}
  ${R('Pihenők','Rests',[['Rövid pihenő (kb. 1 óra): 2 tevékenység – Sebek ellátása / Stressz törlése / Páncéljavítás (mind 1d4 + fokozat), Felkészülés (+1 Remény, társsal +2). Három rövid pihenő után a következőnek hosszúnak kell lennie.','Short rest (about an hour): 2 moves – Tend to Wounds / Clear Stress / Repair Armor (each 1d4 + tier), Prepare (+1 Hope, +2 with a party member). After three short rests, the next must be long.'],['Hosszú pihenő: 2 tevékenység – minden ÉP / minden Stressz / minden Páncélhely törlése, Felkészülés, Munka egy projekten.','Long rest: 2 moves – clear all HP / all Stress / all Armor Slots, Prepare, Work on a Project.']])}
  ${R('Távolságok','Ranges',[['Közelharc: érintés. Nagyon közel: 1,5–3 m. Közel: 3–9 m (ennyit mozoghatsz akció részeként). Távol: 9–30 m. Nagyon távol: 30–90 m. Közelnél messzebbre mozgáshoz Fürgeség-dobás kell.','Melee: touching. Very Close: 5–10 ft. Close: 10–30 ft. (you can move this far as part of an action). Far: 30–100 ft. Very Far: 100–300 ft. Moving beyond Close needs an Agility Roll.']])}
  ${R('Tartománykártyák','Domain cards',[['Aktív pakli: legfeljebb 5 kártya, a többi a tárolóban. Pihenő elején szabadon cserélhetsz; máskor az Előhívási árat Stresszben fizeted. Minden szinten kapsz egy új kártyát (szinted vagy alacsonyabb).','Loadout: up to 5 cards, the rest sit in the vault. Swap freely at the start of a rest; otherwise pay the Recall Cost in Stress. You gain one new card per level (your level or lower).']])}
- </div></details>
- <p class="small muted">${L('A magyar szövegek ennek az alkalmazásnak a saját, nem hivatalos fordításai; vita esetén az angol eredeti az irányadó.','Hungarian texts are this app\'s own unofficial translations; the English original prevails.')}<br>This product includes materials from the Daggerheart System Reference Document 1.0, © Critical Role, LLC. under the terms of the Darrington Press Community Gaming (DPCGL) License. More information can be found at <a href="https://www.daggerheart.com" target="_blank" rel="noopener">https://www.daggerheart.com</a>. There are no previous modifications by others. ${L('Nem hivatalos rajongói eszköz; nem áll kapcsolatban a Critical Role-lal vagy a Darrington Press-szel.','Unofficial fan tool; not affiliated with Critical Role or Darrington Press.')}</p></section>`}
+ </div></details>`}
+ ${ruleFoot(g)}</section>`}
 
 /* ============ import / export ============ */
 const Tp=(hu,en)=>lang==='hu'&&hu!==en?`${hu} (${en})`:en;const Np=o=>Tp(o.hu,o.en);
 const PRINTCSS='.dhdata{font:5.5pt/1.15 "Courier New",monospace;word-break:break-all;color:#777;break-inside:avoid;font-variant-ligatures:none;margin-top:16px}.pport{float:right;width:120px;border:2px solid #999;border-radius:8px;margin:0 0 8px 12px}body{font:11pt/1.4 Georgia,serif;color:#000;background:#fff;max-width:820px;margin:20px auto;padding:0 16px}h1{font-size:22pt;margin:0 0 4px}h2{font-size:14pt;border-bottom:1px solid #999;margin:18px 0 6px}h3{font-size:12pt;margin:12px 0 2px}h4{font-size:11pt;margin:10px 0 2px}p{margin:4px 0}table{border-collapse:collapse;margin:6px 0}th,td{border:1px solid #999;padding:3px 8px;text-align:left}blockquote{margin:4px 0;padding-left:10px;border-left:2px solid #999;color:#444;font-style:italic}ul,ol{margin:4px 0;padding-left:20px}';
 // the whole sheet as Markdown: one source for the .md export, the .html export and the print view
-function sheetMd(c,d){const o=[];const anc=c.anc1===c.anc2?Np(ANC[c.anc1]):`${P(ANC[c.anc1])} / ${P(ANC[c.anc2])}`;
+const sheetMd=(c,d)=>c.game==='dnd'?dSheetMd(c,d):dhSheetMd(c,d);
+function dhSheetMd(c,d){const o=[];const anc=c.anc1===c.anc2?Np(ANC[c.anc1]):`${P(ANC[c.anc1])} / ${P(ANC[c.anc2])}`;
  const tbl=(head,rows)=>{o.push('| '+head.join(' | ')+' |','|'+head.map(()=>' --- ').join('|')+'|',...rows.map(r=>'| '+r.map(x=>String(x).replace(/\|/g,'/')).join(' | ')+' |'),'')};
  const ft=(src,n,t)=>{o.push(`#### ${n} — ${src}`,'');if(lang==='hu'&&t.hu)o.push(t.hu,'',...String(t.en).split('\n').map(l=>'> '+l),'');else o.push(t.en,'')};
  const wline=w=>[gPlain(w),P(TR[w.trait])+' '+sgn(d.traits[w.trait].v),P(RANGES[w.range]),dmgStr(w,d)+' '+dtN(w.dtype),w.hands,w.featName?`${w.featName}: ${w.featText}`:'—'];
@@ -902,19 +949,19 @@ async function saveFile(name,data,mime){try{
   else{const a=document.createElement('a'),u=URL.createObjectURL(new Blob([data],{type:mime}));a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),5000)}
   expMsg(L('Elmentve: ','Saved: ')+name)}catch(e){expMsg(L('A fájlmentés itt nem sikerült – használd a másolást.','Saving a file did not work here – use copy instead.'))}}
 let blkCache={k:'',v:''};
-function fillPrint(blk){const c=cur(),k=c.id+':'+c.updatedAt;if(typeof blk==='string')blkCache={k,v:blk};const el=$('#printArea');if(el)el.innerHTML=sheetBody(c,blkCache.k===k?blkCache.v:'')}
+function fillPrint(blk){const c=cur();if(!c)return;const k=c.id+':'+c.updatedAt;if(typeof blk==='string')blkCache={k,v:blk};const el=$('#printArea');if(el)el.innerHTML=sheetBody(c,blkCache.k===k?blkCache.v:'')}
 function vImport(c){return `<div class="panel" style="margin-bottom:14px"><h2>${L('Exportálás és betöltés','Export and import')}</h2>
- <h3>${L('Karakterlap','Character sheet')}: ${esc(c.name||L('Névtelen','Unnamed'))}</h3><p class="small muted">${L('Olvasható, teljes karakterlap minden képesség- és kártyaszöveggel.','A readable, complete sheet with all feature and card text.')}</p>
- <div class="row" style="margin-top:6px">${IN_ARTIFACT?'':`<button class="btn pri" data-act="print">${L('Nyomtatás / PDF','Print / PDF')}</button>`}<button class="btn" data-act="expHtml">${L('Letöltés: HTML','Download HTML')}</button><button class="btn" data-act="expMd">${L('Letöltés: Markdown','Download Markdown')}</button><button class="btn" data-act="expMdCopy">${L('Szöveg másolása','Copy as text')}</button></div>
+ ${c&&ui.view==='char'?`<h3>${L('Karakterlap','Character sheet')}: ${esc(c.name||L('Névtelen','Unnamed'))}</h3><p class="small muted">${L('Olvasható, teljes karakterlap minden képesség- és kártyaszöveggel.','A readable, complete sheet with all feature and card text.')}</p>
+ <div class="row" style="margin-top:6px">${IN_ARTIFACT?'':`<button class="btn pri" data-act="print">${L('Nyomtatás / PDF','Print / PDF')}</button>`}<button class="btn" data-act="expHtml">${L('Letöltés: HTML','Download HTML')}</button><button class="btn" data-act="expMd">${L('Letöltés: Markdown','Download Markdown')}</button><button class="btn" data-act="expMdCopy">${L('Szöveg másolása','Copy as text')}</button></div>`:''}
  ${IN_ARTIFACT?'':NATIVE?`<h3 style="margin-top:14px">${L('Automatikus mentés a gépedre','Automatic saving to your Mac')}</h3><p class="small">${L('A program minden változást magától ment ebbe a fájlba, és naponta biztonsági másolatot is tesz mellé (a „backups” mappába):','The app saves every change to this file by itself, and keeps a daily backup copy next to it (in the “backups” folder):')}<br><code style="word-break:break-all">${esc(window.DH_NATIVE_PATH||'')}</code></p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="saveNow">${L('Mentés most','Save now')}</button><button class="btn" data-act="natReveal">${L('Mentésfájl megmutatása a Finderben','Show the save file in Finder')}</button></div>`:`<h3 style="margin-top:14px">${L('Automatikus mentés fájlba a gépeden','Automatic saving to a file on your computer')}</h3>${!FS_OK?`<p class="small muted">${L('Ebben a böngészőben nem érhető el (asztali Chrome vagy Edge kell hozzá). Itt a fenti „Biztonsági mentés” gomb tölt le egy mentésfájlt.','Not available in this browser (needs desktop Chrome or Edge). Here the “Download backup” button at the top downloads a save file.')}</p>`:fsx.h?`<p class="small">${L('Mentésfájl','Save file')}: <b>${esc(fsx.name)}</b> — ${fsx.perm==='granted'?L('minden változás után magától frissül.','updated automatically after every change.'):L('ebben a munkamenetben még nincs csatlakoztatva.','not connected in this session yet.')}</p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="saveNow">${fsx.perm==='granted'?L('Mentés most','Save now'):L('Csatlakoztatás','Reconnect')}</button><button class="btn" data-act="fileNew">${L('Másik fájlba…','Different file…')}</button><button class="btn" data-act="fileOpen">${L('Meglévő mentésfájl megnyitása','Open an existing save file')}</button><button class="btn warn" data-act="fileUnlink">${L('Leválasztás','Disconnect')}</button></div>`:`<p class="small muted">${L('Válassz egy fájlt a gépeden: az app minden változás után magától belementi az összes karaktert, és megnyitáskor onnan olvassa vissza a frissebb állapotot. Így a böngésző adatainak törlése sem viszi el a karaktereidet.','Pick a file on your computer: the app writes all characters into it after every change and reads the newer state back from it when it opens. Clearing the browser\'s data then no longer loses your characters.')}</p><div class="row" style="margin-top:6px"><button class="btn pri" data-act="fileNew">${L('Mentésfájl létrehozása','Create a save file')}</button><button class="btn" data-act="fileOpen">${L('Meglévő mentésfájl megnyitása','Open an existing save file')}</button></div>`}`}
  <h3 style="margin-top:14px">${L('Adatmentés (újra betölthető)','Data backup (can be loaded back)')}</h3><p class="small muted">${IN_ARTIFACT?L('A karaktereid automatikusan mentődnek.','Your characters save automatically.'):NATIVE?L('Másik gépre vagy a webes változatba JSON-fájllal viheted át a karaktereidet.','Move your characters to another computer or to the web version with a JSON file.'):L('A karaktereid ennek a böngészőnek a tárhelyén élnek. Más eszközre vagy böngészőbe JSON-fájllal viheted át őket – érdemes időnként menteni.','Your characters live in this browser\'s storage. Move them to another device or browser with a JSON file – back up now and then.')}</p>
- <div class="row" style="margin-top:6px"><button class="btn" data-act="expJson">${L('Ez a karakter (.json)','This character (.json)')}</button><button class="btn" data-act="expAll">${L('Minden karakter (.json)','All characters (.json)')}</button><button class="btn" data-act="expCopy">${L('JSON másolása','Copy JSON')}</button><label class="btn">${L('Betöltés fájlból','Load from file')}<input type="file" id="impFile" accept=".json,.html,.htm,.pdf,application/json,application/pdf,text/html" hidden></label></div>
+ <div class="row" style="margin-top:6px">${c&&ui.view==='char'?`<button class="btn" data-act="expJson">${L('Ez a karakter (.json)','This character (.json)')}</button>`:''}<button class="btn" data-act="expAll">${L('Minden karakter (.json)','All characters (.json)')}</button>${c&&ui.view==='char'?`<button class="btn" data-act="expCopy">${L('JSON másolása','Copy JSON')}</button>`:''}<label class="btn">${L('Betöltés fájlból','Load from file')}<input type="file" id="impFile" accept=".json,.html,.htm,.pdf,application/json,application/pdf,text/html" hidden></label></div>
  <p class="small muted" style="margin-top:6px">${L('Betölthető: JSON-mentés, valamint az ebből az appból exportált HTML és nyomtatott PDF (ezek végén egy apró betűs adatblokk van, abból áll vissza a karakter). Más forrásból származó, pl. hivatalos kitölthető PDF-et nem tud beolvasni. A profilkép csak a JSON-mentésben utazik.','Loads: JSON backups, plus HTML exported and PDFs printed from this app (they end with a small-print data block the character is restored from). PDFs from other sources, e.g. the official form-fillable sheet, cannot be read. The portrait travels only in the JSON backup.')}</p>
  <p class="small" id="expMsg" style="margin-top:6px;min-height:1.2em"></p>
  <textarea id="impTxt" rows="3" placeholder="${L('…vagy illeszd be ide a JSON-t','…or paste the JSON here')}"></textarea><div class="row" style="margin-top:6px"><button class="btn sm" data-act="impPaste">${L('Beillesztett JSON betöltése','Load pasted JSON')}</button><span class="grow"></span><button class="btn sm" data-act="toggleImp">${L('Bezár','Close')}</button></div></div>`}
-function importChar(txt){try{const o=JSON.parse(txt);const list=(Array.isArray(o)?o:o&&Array.isArray(o.chars)?o.chars:[o]).filter(x=>x&&CLASSES[x.classId]);if(!list.length)throw 0;let last;
-  for(const x of list){const c=normalize(Object.assign(newChar(),x,{id:'c-'+uid6(),creating:null}));delete c.example;S.chars.push(c);c.updatedAt=Date.now();dirty.add(c.id);last=c}
-  S.cur=last.id;ui.imp=false;touch(last);render()}catch(e){expMsg(L('Ez nem érvényes karakterfájl.','That is not a valid character file.'))}}
+function importChar(txt){try{const o=JSON.parse(txt);const list=(Array.isArray(o)?o:o&&Array.isArray(o.chars)?o.chars:[o]).filter(x=>x&&(x.game==='dnd'||CLASSES[x.classId]));if(!list.length)throw 0;let last;
+  for(const x of list){const c=normalize(Object.assign(x.game==='dnd'?dNewChar():newChar(),x,{id:'c-'+uid6(),creating:null}));delete c.example;S.chars.push(c);c.updatedAt=Date.now();dirty.add(c.id);last=c}
+  S.cur=last.id;S.game=last.game||'dh';ui.view='char';ui.tab='sheet';ui.imp=false;touch(last);render()}catch(e){expMsg(L('Ez nem érvényes karakterfájl.','That is not a valid character file.'))}}
 
 /* ============ actions ============ */
 const A={
@@ -923,8 +970,12 @@ const A={
  portrait(x,el){const f=el.files&&el.files[0];if(!f)return;const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const W=256,H=320,cv=document.createElement('canvas');cv.width=W;cv.height=H;const k=Math.max(W/im.width,H/im.height),w=im.width*k,h=im.height*k;cv.getContext('2d').drawImage(im,(W-w)/2,(H-h)/3,w,h);cur().portrait=cv.toDataURL('image/jpeg',.82);touch();render()};im.src=fr.result};fr.readAsDataURL(f)},
  portraitDel(){delete cur().portrait;touch();render()},
  tab(x){ui.tab=x.t;try{history.replaceState(null,'','#'+x.t)}catch(e){}render();window.scrollTo(0,0)},
- selChar(x,el){S.cur=el.value;ui.lvl=null;ui.rest=null;ui.last=null;ui.dmg=null;saveLocal();render()},
- newChar(){const c=newChar();S.chars.push(c);S.cur=c.id;touch(c);render();window.scrollTo(0,0)},
+ home(){ui.view='home';ui.imp=false;try{history.replaceState(null,'','#')}catch(e){}render();window.scrollTo(0,0)},
+ game(x){S.game=x.g;saveLocal();render()},
+ openChar(x){S.cur=x.id;ui.view='char';ui.tab='sheet';ui.lvl=null;ui.rest=null;ui.last=null;ui.dmg=null;ui.dlast=null;saveLocal();render();window.scrollTo(0,0)},
+ openRules(){ui.view='rules';ui.imp=false;render();window.scrollTo(0,0)},
+ selChar(x,el){S.cur=el.value;ui.dlast=null;ui.lvl=null;ui.rest=null;ui.last=null;ui.dmg=null;saveLocal();render()},
+ newChar(){if(S.game==='dnd')return A.dNewChar();const c=newChar();S.chars.push(c);S.cur=c.id;ui.view='char';ui.tab='sheet';touch(c);render();window.scrollTo(0,0)},
  randChar(){const c=newChar();const ck=pick(Object.keys(CLASSES));c.classId=ck;c.subId=pick(CLASSES[ck].subs).id;c.anc1=c.anc2=pick(Object.keys(ANC));c.community=pick(Object.keys(COMM));
   const arr=[...START_ARRAY].sort(()=>Math.random()-.5);TRAITS.forEach((t,i)=>c.traits[t.id]=arr[i]);const best=TRAITS.slice().sort((a,z)=>c.traits[z.id]-c.traits[a.id])[0].id;
   const t1=WCAT.filter(w=>w.tier===1&&w.slot===1),fit=t1.filter(w=>w.trait===best);c.primary=mkWeapon(pick(fit.length?fit:t1));c.secondary=c.primary&&c.primary.hands===1?mkWeapon(pick(WCAT.filter(w=>w.tier===1&&w.slot===2))):null;c.armor=mkArmor(pick(ACAT.filter(a=>a.tier===1)));
@@ -932,10 +983,10 @@ const A={
   const ex=[b('Vándorkomédiás','Travelling player'),b('Csempész','Smuggler'),b('Könyvmoly','Bookworm'),b('Erdőjáró','Woodswalker'),b('Kovácsinas','Smith\'s apprentice'),b('Udvari kém','Court spy'),b('Tengerész','Sailor'),b('Gyógyfüves','Herbalist'),b('Utcagyerek','Street urchin'),b('Volt katona','Former soldier')].sort(()=>Math.random()-.5);
   c.experiences=[{name:P(ex[0]),mod:0},{name:P(ex[1]),mod:0}];
   c.cards=CARDCAT.filter(k=>k.level===1&&CLASSES[ck].domains.includes(k.domain)).sort(()=>Math.random()-.5).slice(0,2).map(k=>mkCard(k,'loadout'));
-  c.items.push({name:P(CLASSES[ck].item),qty:1},{name:L('Kisebb gyógyital (Minor Health Potion)','Minor Health Potion'),qty:1});c.creating=6;S.chars.push(c);S.cur=c.id;touch(c);render();window.scrollTo(0,0)},
+  c.items.push({name:P(CLASSES[ck].item),qty:1},{name:L('Kisebb gyógyital (Minor Health Potion)','Minor Health Potion'),qty:1});c.creating=6;S.chars.push(c);S.cur=c.id;ui.view='char';touch(c);render();window.scrollTo(0,0)},
  delChar(){if(ui.confirm!=='del'){ui.confirm='del';return render()}ui.confirm=null;const c=cur();S.chars=S.chars.filter(x=>x.id!==c.id);S.deleted.push(c.id);
   if(db){db.collection(base).doc(c.id).delete().catch(()=>{});db.collection(base).doc('meta-deleted').set({ids:S.deleted}).catch(()=>{})}
-  if(!S.chars.length)S.chars.push(newChar());S.cur=S.chars[0].id;saveLocal();render()},
+  S.cur=S.chars[0]?S.chars[0].id:null;ui.view='home';saveLocal();render();window.scrollTo(0,0)},
  toggleImp(){ui.imp=!ui.imp;render();if(ui.imp)window.scrollTo(0,0)},
  async saveNow(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
   if(NATIVE)return natSave();
@@ -951,7 +1002,7 @@ const A={
  natReveal(){nat('reveal')},
  async expHtml(){const c=cur();saveFile(fileBase(c)+'.html',sheetHtml(c,await packChar(c)),'text/html')},
  expMd(){const c=cur();saveFile(fileBase(c)+'.md',sheetMd(c,derive(c)),'text/markdown')},
- expJson(){const c=cur();saveFile(fileBase(c)+'.json',JSON.stringify(c,null,1),'application/json')},
+ expJson(){const c=cur();if(!c)return;saveFile(fileBase(c)+'.json',JSON.stringify(c,null,1),'application/json')},
  expAll(){saveFile('daggerheart-karakterek.json',JSON.stringify({chars:S.chars},null,1),'application/json')},
  expMdCopy(){A.copyTxt(sheetMd(cur(),derive(cur())))},
  expCopy(){A.copyTxt(JSON.stringify(cur()))},
@@ -976,7 +1027,7 @@ const A={
  sugTraits(){const c=cur(),v=CLASSES[c.classId].sug.traits.split(',').map(x=>parseInt(x.replace('+','').trim(),10));TRAITS.forEach((t,i)=>c.traits[t.id]=v[i]||0);touch();render()},
  sugGear(){const c=cur(),g=CLASSES[c.classId].sug;c.primary=mkWeapon(wFind(g.primary))||c.primary;c.secondary=mkWeapon(wFind(g.secondary));c.armor=mkArmor(aFind(g.armor))||c.armor;touch();render()},
  addCatItem(x,el){const v=el.value;if(!v)return;const it=(v[0]==='c'?SRD.consumables:SRD.items)[+v.slice(1)];cur().items.push({name:it.name,qty:1,desc:it.desc});touch();render()},
- ruleOpen(x){const i=+x.i;ui.tab='rules';ui.rule.ch=RULES[i].ch;ui.rule.hl=x.nohl?null:qToks(ui.rule.q);try{history.replaceState(null,'','#rules')}catch(e){}render();const el=document.getElementById('rs_'+i);if(el&&el.scrollIntoView)el.scrollIntoView({block:'start'})},
+ ruleOpen(x){const i=+x.i;if(ui.view==='char')ui.tab='rules';ui.rule.ch=RULES[i].ch;ui.rule.hl=x.nohl?null:qToks(ui.rule.q);try{history.replaceState(null,'','#rules')}catch(e){}render();const el=document.getElementById('rs_'+i);if(el&&el.scrollIntoView)el.scrollIntoView({block:'start'})},
  ruleGo(x){const i=RULES.findIndex(r=>slug(r.t)===x.slug);if(i>=0)A.ruleOpen({i,nohl:1})},
  ruleChap(x,el){ui.rule.ch=+el.value;ui.rule.hl=null;render()},
  ruleChapGo(x){ui.rule.ch=+x.i;ui.rule.hl=null;render();const v=$('#ruleView');if(v&&v.scrollIntoView)v.scrollIntoView({block:'start'})},
@@ -1095,12 +1146,14 @@ function exampleChar(){const c=newChar();Object.assign(c,{example:true,creating:
  return c}
 function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);
  if(NATIVE&&window.DH_NATIVE_DATA){try{const o=JSON.parse(window.DH_NATIVE_DATA);mergeChars(Array.isArray(o)?o:o.chars||[],o.deleted)}catch(e){nsx.err='read'}}if(!S.chars.length){const c=exampleChar();S.chars=[c];S.cur=c.id}lang=S.lang||'hu';
- const h=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===h))ui.tab=h;render();initRemote();initFile();if(NATIVE&&!nsx.err&&S.chars.some(c=>!c.example))natSoon();
+ const h=(location.hash||'').slice(1);if(h&&S.cur&&[...TABS,...D_TABS].some(t=>t[0]===h)){ui.tab=h;ui.view='char'}window.__booted=true;render();initRemote();initFile();if(NATIVE&&!nsx.err&&S.chars.some(c=>!c.example))natSoon();
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&fileT)fileWrite()});
  window.addEventListener('beforeprint',()=>fillPrint());
  if(!IN_ARTIFACT&&'serviceWorker' in navigator&&location.protocol==='https:'){const sw=navigator.serviceWorker,had=!!sw.controller;let done=false;
   // when a newer version of the app takes over, reload once so the page is never stale
   sw.addEventListener('controllerchange',()=>{if(had&&!done){done=true;location.reload()}});
   sw.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{})}}
-boot();
+// dnd.js (loaded next) starts the app; if that file is missing, start anyway
+window.addEventListener('load',()=>{if(!window.__booted)boot()});
 </script>
+<script src="dnd.js"></script>

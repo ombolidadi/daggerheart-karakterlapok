@@ -1,8 +1,14 @@
-# Daggerheart Karakterlapok
+# Karakterlapok – Daggerheart és D&D 5e
 
-Kétnyelvű (magyar–angol) Daggerheart karakteralkotó és karakterlap-kezelő webapp. Egyetlen statikus oldal: nincs szerver, nincs fiók, a karakterek a böngésző tárhelyén (localStorage) maradnak.
+Kétnyelvű (magyar–angol) karakteralkotó és karakterlap-kezelő webapp két játékhoz. Egyetlen statikus oldal: nincs szerver, nincs fiók.
 
-**Tudja:** lépésenkénti karakteralkotás · automatikusan számolt értékek · Kettősség-dobó · sebzés, pihenő, halálmozdulatok · szintlépés 10. szintig · mind a 189 tartománykártya teljes szövege · fegyver-, páncél- és tárgykatalógus · session-napló és jegyzetek · nappali/éjszakai téma · profilkép · exportálás (nyomtatás/PDF, HTML, Markdown, JSON) és visszatöltés (JSON, valamint az appból exportált HTML és PDF) · a teljes SRD 1.0 szabályszöveg keresővel · telepíthető és offline is működik (PWA).
+**Kezdőlap:** játékválasztó (Daggerheart / D&D 5e), a karakterek listája, új karakter, szabálykönyv.
+
+**Daggerheart:** lépésenkénti karakteralkotás · automatikusan számolt értékek · Kettősség-dobó · sebzés, pihenő, halálmozdulatok · szintlépés 10. szintig · mind a 189 tartománykártya · a teljes SRD 1.0 keresővel.
+
+**D&D 5e (2024-es szabályok, SRD 5.2.1):** 12 osztály (osztályonként egy alosztály), 9 faj, 4 háttér · tulajdonságok, mentők, jártasságok, PO, ÉP, kezdeményezés automatikusan · d20-dobó előnnyel/hátránnyal · 339 varázslat teljes szöveggel, varázshelyek · pihenők, életkockák, halálmentők · szintlépés 20. szintig · a teljes SRD 5.2.1 (szabályok, varázslatok, mágikus tárgyak, szörnyek) keresővel.
+
+**Közös:** nappali/éjszakai téma · profilkép · session-napló és jegyzetek · exportálás (nyomtatás/PDF, HTML, Markdown, JSON) és visszatöltés · automatikus mentés fájlba · telepíthető, offline is működik (PWA) · natív macOS-program.
 
 ## Közzététel GitHub Pages-en
 
@@ -20,9 +26,10 @@ Saját fordítás: `bash macos/build-app.sh` (Xcode Command Line Tools kell hozz
 
 ## Fejlesztés
 
-- `src/app.html` – az alkalmazás (HTML + CSS + JS egy fájlban).
-- `srd-source/` – a Daggerheart SRD 1.0 adatai (JSON + Markdown).
-- `python3 build.py` – ebből készül az `index.html`, a `data/srd-data.js`, a `data/srd-rules.js`, a manifest és az ikonok. Szerkesztés után futtasd újra.
+- `src/app.html` – az alkalmazás váza és a Daggerheart-lap (HTML + CSS + JS egy fájlban).
+- `src/dnd.js` – a D&D 5e karakterlap.
+- `srd-source/` – a Daggerheart SRD 1.0 és (a `dnd/` almappában) a D&D SRD 5.2.1 adatai.
+- `python3 build.py` – ebből készül az `index.html`, a `dnd.js`, a `data/*.js`, a manifest és az ikonok. Szerkesztés után futtasd újra.
 - Helyi kipróbálás: `python3 -m http.server 8000`, majd `http://localhost:8000`.
 
 ## Adatok és mentés
@@ -33,4 +40,6 @@ Asztali Chrome-ban vagy Edge-ben a fenti **Mentés fájlba…** gombbal kiválas
 
 This product includes materials from the Daggerheart System Reference Document 1.0, © Critical Role, LLC. under the terms of the Darrington Press Community Gaming (DPCGL) License. More information can be found at https://www.daggerheart.com. There are no previous modifications by others.
 
-Az SRD strukturált adatai a [seansbox/daggerheart-srd](https://github.com/seansbox/daggerheart-srd) repóból származnak. A magyar szövegek saját, nem hivatalos fordítások. Nem hivatalos rajongói eszköz; nem áll kapcsolatban a Critical Role-lal vagy a Darrington Press-szel. Nyilvános közzététel előtt olvasd el a DPCGL feltételeit: https://www.darringtonpress.com/license
+**D&D:** This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at https://creativecommons.org/licenses/by/4.0/legalcode. A strukturált adatok a [5e-bits/5e-database](https://github.com/5e-bits/5e-database) (MIT), a szabályszöveg a [downfallx/dnd-5e-srd-markdown](https://github.com/downfallx/dnd-5e-srd-markdown) repóból származnak. Nem áll kapcsolatban a Wizards of the Coasttal.
+
+**Daggerheart:** az SRD strukturált adatai a [seansbox/daggerheart-srd](https://github.com/seansbox/daggerheart-srd) repóból származnak. A magyar szövegek saját, nem hivatalos fordítások. Nem hivatalos rajongói eszköz; nem áll kapcsolatban a Critical Role-lal vagy a Darrington Press-szel. Nyilvános közzététel előtt olvasd el a DPCGL feltételeit: https://www.darringtonpress.com/license
