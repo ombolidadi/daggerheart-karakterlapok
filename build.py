@@ -151,8 +151,41 @@ def build_dnd():
     return len(out['spells']), len(secs)
 if (R / 'srd-source' / 'dnd' / 'json').is_dir():
     print('dnd:', build_dnd())
-if (R / 'src' / 'dnd.js').exists():
-    (R / 'dnd.js').write_text((R / 'src' / 'dnd.js').read_text(encoding='utf-8'), encoding='utf-8')
+for f in ('dnd.js', 'gm.js'):
+    if (R / 'src' / f).exists():
+        (R / f).write_text((R / 'src' / f).read_text(encoding='utf-8'), encoding='utf-8')
+
+# ---- game master data: book adversaries / environments (Daggerheart) and monsters (D&D), loaded on demand
+def build_gm():
+    feats = lambda a: [{'name': f['name'], 'text': f.get('text', '')} for f in a or []]
+    adv = [{'name': a['name'], 'tier': a['tier'], 'type': a['type'], 'desc': a.get('description', ''), 'motives': a.get('motives_and_tactics', ''),
+            'diff': a.get('difficulty', ''), 'thr': a.get('thresholds', ''), 'hp': a.get('hp', ''), 'stress': a.get('stress', ''), 'atk': a.get('atk', ''),
+            'attack': a.get('attack', ''), 'range': a.get('range', ''), 'damage': a.get('damage', ''), 'exp': a.get('experience', ''), 'feat': feats(a.get('feature'))} for a in J('adversaries')]
+    env = [{'name': e['name'], 'tier': e['tier'], 'type': e['type'], 'desc': e.get('description', ''), 'impulses': e.get('impulses', ''), 'diff': e.get('difficulty', ''),
+            'adv': e.get('potential_adversaries', ''), 'feat': feats(e.get('feature'))} for e in J('environments')]
+    (R / 'data' / 'gm-dh.js').write_text('window.GM_DH=' + json.dumps({'adv': adv, 'env': env}, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
+    mons = json.load(open(R / 'srd-source' / 'dnd' / 'json' / 'Monsters.json', encoding='utf-8'))
+    names = lambda a: ', '.join((x.get('name') if isinstance(x, dict) else str(x)) for x in a or [])
+    acts = lambda a: [{'name': x['name'] + (f" ({x['usage']['times']}/{x['usage']['type'].replace('per ', '')})" if isinstance(x.get('usage'), dict) and x['usage'].get('times') else ''), 'text': x.get('desc', '')} for x in a or []]
+    out = []
+    for m in mons:
+        pr = m.get('proficiencies') or []
+        pv = lambda pre: ', '.join(f"{q['proficiency']['name'].replace(pre, '')} {'+' if q['value'] >= 0 else ''}{q['value']}" for q in pr if q['proficiency']['name'].startswith(pre))
+        ac = m.get('armor_class') or [{}]
+        out.append({'name': m['name'], 'size': m.get('size', ''), 'type': m.get('type', ''), 'align': m.get('alignment', ''), 'ac': ac[0].get('value', 10), 'hp': m.get('hit_points', 1),
+                    'hd': m.get('hit_points_roll') or m.get('hit_dice', ''), 'speed': ', '.join(f"{k} {v}" for k, v in (m.get('speed') or {}).items()),
+                    'abil': [m.get(k, 10) for k in ('strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma')],
+                    'saves': pv('Saving Throw: '), 'skills': pv('Skill: '), 'vuln': names(m.get('damage_vulnerabilities')), 'res': names(m.get('damage_resistances')),
+                    'imm': ', '.join(x for x in [names(m.get('damage_immunities')), names(m.get('condition_immunities'))] if x),
+                    'senses': ', '.join(f"{k.replace('_', ' ')} {v}" for k, v in (m.get('senses') or {}).items()), 'lang': m.get('languages', ''),
+                    'cr': m.get('challenge_rating', 0), 'xp': m.get('xp', 0), 'pb': m.get('proficiency_bonus', 2),
+                    'traits': acts(m.get('special_abilities')), 'actions': acts(m.get('actions')), 'bonus': acts(m.get('bonus_actions')),
+                    'reactions': acts(m.get('reactions')), 'legendary': acts(m.get('legendary_actions'))})
+    out.sort(key=lambda x: x['name'])
+    (R / 'data' / 'gm-dnd.js').write_text('window.GM_DND=' + json.dumps({'mon': out}, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
+    return len(adv), len(env), len(out)
+if (R / 'srd-source' / 'adversaries.json').exists() and (R / 'srd-source' / 'dnd' / 'json' / 'Monsters.json').exists():
+    print('gm:', build_gm())
 
 # ---- icons
 def png(n):

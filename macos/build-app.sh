@@ -18,7 +18,7 @@ else
   echo "figyelem: az Intel (x86_64) változat nem fordult le, csak Apple Silicon készül"; cp "$TMP/dh-arm64" "$APP/Contents/MacOS/DaggerheartKarakterlapok"
 fi
 
-cp index.html dnd.js icon.svg "$APP/Contents/Resources/web/"
+cp index.html dnd.js gm.js icon.svg "$APP/Contents/Resources/web/"
 cp data/*.js "$APP/Contents/Resources/web/data/"
 
 # app icon from macos/icon-1024.png (written by build.py)

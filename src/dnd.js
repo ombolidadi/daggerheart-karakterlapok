@@ -262,5 +262,3 @@ Object.assign(A,{
  dAsi(x,el){const c=cur(),lv=+x.l;let e=c.asi.find(q=>q.level===lv);if(!e){e={level:lv,a:{},feat:''};c.asi.push(e)}e.a[x.a]=+el.value;touch();render()},
  dAsiFeat(x,el){const c=cur(),lv=+x.l;let e=c.asi.find(q=>q.level===lv);if(!e){e={level:lv,a:{},feat:''};c.asi.push(e)}e.feat=el.value;touch();render()}
 });
-
-boot();

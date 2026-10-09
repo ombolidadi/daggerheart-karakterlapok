@@ -8,6 +8,8 @@ Kétnyelvű (magyar–angol) karakteralkotó és karakterlap-kezelő webapp két
 
 **D&D 5e (2024-es szabályok, SRD 5.2.1):** 12 osztály (osztályonként egy alosztály), 9 faj, 4 háttér · tulajdonságok, mentők, jártasságok, PO, ÉP, kezdeményezés automatikusan · d20-dobó előnnyel/hátránnyal · 339 varázslat teljes szöveggel, varázshelyek · pihenők, életkockák, halálmentők · szintlépés 20. szintig · a teljes SRD 5.2.1 (szabályok, varázslatok, mágikus tárgyak, szörnyek) keresővel.
 
+**Kalandmester:** kampányalkotó lépésről lépésre (rendszer → alapötlet → első helyszín → szereplők → események → első csata) · történettábla · helyszínek és jelenlévők · szereplők · bestiárium a könyvek ellenfeleivel (129 Daggerheart-ellenfél és 19 környezet, 341 D&D-szörny) · csatakövető nehézségbecsléssel · házi szabályok, infók, árlista · napló és keresés.
+
 **Közös:** nappali/éjszakai téma · profilkép · session-napló és jegyzetek · exportálás (nyomtatás/PDF, HTML, Markdown, JSON) és visszatöltés · automatikus mentés fájlba · telepíthető, offline is működik (PWA) · natív macOS-program.
 
 ## Közzététel GitHub Pages-en
@@ -28,6 +30,7 @@ Saját fordítás: `bash macos/build-app.sh` (Xcode Command Line Tools kell hozz
 
 - `src/app.html` – az alkalmazás váza és a Daggerheart-lap (HTML + CSS + JS egy fájlban).
 - `src/dnd.js` – a D&D 5e karakterlap.
+- `src/gm.js` – a kalandmesteri felület (kampányok).
 - `srd-source/` – a Daggerheart SRD 1.0 és (a `dnd/` almappában) a D&D SRD 5.2.1 adatai.
 - `python3 build.py` – ebből készül az `index.html`, a `dnd.js`, a `data/*.js`, a manifest és az ikonok. Szerkesztés után futtasd újra.
 - Helyi kipróbálás: `python3 -m http.server 8000`, majd `http://localhost:8000`.

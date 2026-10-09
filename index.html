@@ -190,6 +190,16 @@ blockquote{margin:0;padding:6px 12px;border-left:3px solid var(--fear);backgroun
  #printArea .dhdata{font:5.5pt/1.15 "Courier New",monospace;word-break:break-all;color:#777;break-inside:avoid;font-variant-ligatures:none;margin-top:16px} #printArea .pport{float:right;width:120px;border:2px solid #999;border-radius:8px;margin:0 0 8px 12px}
  #printArea blockquote{display:block;background:none;border-left:2px solid #999;color:#444;font-style:italic;margin:4px 0;padding:0 0 0 10px} #printArea ul{margin:4px 0;padding-left:20px} #printArea .scroll{overflow:visible}
 }
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px;align-items:start}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.statblk{display:flex;flex-direction:column;gap:6px;font-size:.95rem;padding:8px 0}
+.statblk h4{border-bottom:1px solid var(--hope);padding-bottom:1px;margin-top:4px}
+.statblk table.abil{width:auto} .statblk table.abil th,.statblk table.abil td{text-align:center;padding:2px 8px}
+.comb{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--raised);display:flex;flex-direction:column;gap:4px;min-width:0}
+.nw{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.comb.cur{border-color:var(--hope);box-shadow:inset 4px 0 0 var(--hope)} .comb.out{opacity:.55}
+.ccard.camp{background:var(--ink);color:var(--bg);box-shadow:inset 0 0 0 2px var(--hope)} .ccard.camp .cport{border-color:var(--hope);border-radius:8px;background:none;color:var(--hope)}
+.card.npc .cardhead input{background:rgba(255,255,255,.92);color:#1d1a2f}
 .eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
 .homehead{display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .gamesel{display:inline-flex;flex-wrap:wrap;border:2px solid var(--ink);border-radius:10px;overflow:hidden}
@@ -354,7 +364,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='2.0';
+const APP_VERSION='2.1';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -413,11 +423,13 @@ const CONDS=[{id:'hidden',n:b('Rejtőzködő','Hidden'),t:b('Az ellened irányul
 const tierOf=l=>l<2?1:l<5?2:l<8?3:4;
 
 /* ============ state ============ */
-let S={chars:[],cur:null,lang:'hu',theme:'auto',game:'dh',deleted:[]};
+let S={chars:[],camps:[],cur:null,lang:'hu',theme:'auto',game:'dh',deleted:[]};
 const HOST_THEME=document.documentElement.getAttribute('data-theme');
 function applyTheme(){const r=document.documentElement;if(S.theme==='light'||S.theme==='dark')r.setAttribute('data-theme',S.theme);else if(HOST_THEME)r.setAttribute('data-theme',HOST_THEME);else r.removeAttribute('data-theme')}
 const ui={view:'home',tab:'sheet',wTier:{},rule:{q:'',ch:0,hl:null},roll:{trait:'agi',exps:[],adv:0,mod:0,react:false,diff:''},last:null,dmg:null,intake:{amt:'',armor:false},rest:null,lvl:null,cardDom:null,confirm:null,imp:false,gen:'',sync:'local'};
 const cur=()=>S.chars.find(c=>c.id===S.cur)||S.chars[0];
+// form fields bind to the open campaign in the GM view, otherwise to the current character
+const bindRoot=()=>ui.view==='camp'&&typeof curCamp==='function'&&curCamp()?curCamp():cur();
 
 const mkWeapon=w=>w?{...w,custom:''}:null,mkArmor=a=>a?{...a,custom:''}:null;
 function newChar(){const t=Date.now();return {id:'c-'+uid6(),createdAt:t,updatedAt:t,creating:0,name:'',pronouns:'',classId:'warrior',subId:'brave',anc1:'human',anc2:'human',community:'wildborne',level:1,
@@ -462,7 +474,7 @@ const dmgStr=(w,d)=>`${d.prof.v}d${w.die}${w.bonus?sgn(w.bonus).replace('−','-
 
 /* ============ persistence ============ */
 const LS='dh-sheets-v1';let db=null,base=null,dirty=new Set(),flushT=null;
-function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LS));if(j&&Array.isArray(j.chars))S=Object.assign(S,j)}catch(e){}}
+function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LS));if(j&&Array.isArray(j.chars))S=Object.assign(S,j)}catch(e){}if(!Array.isArray(S.camps))S.camps=[]}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}fileSoon();natSoon()}
 /* ---- native macOS app: the Swift shell keeps the save file, shows save/print dialogs ---- */
 const NATIVE=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.dh);
@@ -477,8 +489,10 @@ const FS_OK=!(window.claude&&window.claude.use)&&typeof window.showSaveFilePicke
 const fsx={h:null,perm:'none',name:'',at:0,busy:false,again:false,err:''};let fileT=null;
 const FS_TYPES=[{description:'Daggerheart mentés',accept:{'application/json':['.json']}}];
 const idb=(mode,fn)=>new Promise((ok,no)=>{const o=indexedDB.open('dh-sheets',1);o.onupgradeneeded=()=>o.result.createObjectStore('kv');o.onerror=()=>no(o.error);o.onsuccess=()=>{const tx=o.result.transaction('kv',mode),rq=fn(tx.objectStore('kv'));tx.oncomplete=()=>ok(rq&&rq.result);tx.onerror=()=>no(tx.error)}});
-const filePayload=()=>JSON.stringify({app:'daggerheart-karakterlapok',version:APP_VERSION,savedAt:new Date().toISOString(),chars:S.chars.filter(c=>!c.example),deleted:S.deleted},null,1);
+const filePayload=()=>JSON.stringify({app:'daggerheart-karakterlapok',version:APP_VERSION,savedAt:new Date().toISOString(),chars:S.chars.filter(c=>!c.example),camps:S.camps,deleted:S.deleted},null,1);
 // merge characters from a save file: unknown ones are added, and of two copies the more recently edited wins
+function mergeCamps(list){let n=0;for(const x of list||[]){if(!x||!x.id||x.kind!=='camp'||S.deleted.includes(x.id))continue;const i=S.camps.findIndex(k=>k.id===x.id);
+  if(i<0){S.camps.push(gNormalize(x));n++}else if((x.updatedAt||0)>(S.camps[i].updatedAt||0)){S.camps[i]=gNormalize(x);n++}}S.camps=S.camps.filter(k=>!S.deleted.includes(k.id));return n}
 function mergeChars(list,deleted){let n=0;S.deleted=[...new Set([...S.deleted,...(deleted||[])])];S.chars=S.chars.filter(c=>!S.deleted.includes(c.id));
  for(const x of list||[]){if(!x||!x.id||!(x.game==='dnd'||CLASSES[x.classId])||S.deleted.includes(x.id))continue;const i=S.chars.findIndex(c=>c.id===x.id);
   const full=()=>normalize(Object.assign(x.game==='dnd'?dNewChar():newChar(),{creating:null},x));   // missing fields get defaults, so a hand-edited or older file still loads
@@ -486,7 +500,7 @@ function mergeChars(list,deleted){let n=0;S.deleted=[...new Set([...S.deleted,..
  if(n&&S.chars.some(c=>!c.example))S.chars=S.chars.filter(c=>!c.example);
  if(!S.chars.length)S.chars.push(exampleChar());if(!S.chars.find(c=>c.id===S.cur))S.cur=S.chars[0].id;return n}
 async function fileRead(){const t=await(await fsx.h.getFile()).text();if(!t.trim())return 0;let o;try{o=JSON.parse(t)}catch(e){throw new Error('foreign')}
- const list=Array.isArray(o)?o:o&&Array.isArray(o.chars)?o.chars:null;if(!list||list.some(x=>!x||!x.classId))throw new Error('foreign');return mergeChars(list,o.deleted)}
+ const list=Array.isArray(o)?o:o&&Array.isArray(o.chars)?o.chars:null;if(!list||list.some(x=>!x||!x.classId))throw new Error('foreign');const n=mergeChars(list,o.deleted);return n+mergeCamps(o.camps)}
 async function fileWrite(){if(!fsx.h||fsx.perm!=='granted')return false;if(fsx.busy){fsx.again=true;return true}fsx.busy=true;clearTimeout(fileT);fileT=null;
  try{const w=await fsx.h.createWritable();await w.write(filePayload());await w.close();fsx.at=Date.now();fsx.err=''}catch(e){fsx.err=(e&&e.name)||'error';if(e&&e.name==='NotAllowedError')fsx.perm='prompt'}
  fsx.busy=false;if(fsx.again){fsx.again=false;return fileWrite()}setSync(ui.sync);return !fsx.err}
@@ -501,12 +515,12 @@ async function fileLink(h,ask){const prev={h:fsx.h,perm:fsx.perm,name:fsx.name};
 async function initFile(){if(!FS_OK)return;try{const h=await idb('readonly',st=>st.get('handle'));if(h)await fileLink(h,false)}catch(e){}}
 async function filePick(open){try{const h=open?(await window.showOpenFilePicker({types:FS_TYPES}))[0]:await window.showSaveFilePicker({suggestedName:'daggerheart-karakterek.json',types:FS_TYPES});
   if(await fileLink(h,true))await idb('readwrite',st=>st.put(h,'handle')).catch(()=>{})}catch(e){/* picker closed */}}
-function touch(c){c=c||cur();if(c){c.updatedAt=Date.now();delete c.example;dirty.add(c.id)}saveLocal();if(db){setSync('saving');clearTimeout(flushT);flushT=setTimeout(flush,1500)}}
+function touch(c){c=c||bindRoot();if(c){c.updatedAt=Date.now();delete c.example;dirty.add(c.id)}saveLocal();if(db){setSync('saving');clearTimeout(flushT);flushT=setTimeout(flush,1500)}}
 const syncCls=()=>NATIVE?(nsx.err?'bad':'ok'):fsx.h?(fsx.perm==='granted'&&!fsx.err?'ok':'bad'):ui.sync==='saved'?'ok':ui.sync==='error'?'bad':'';
 function setSync(s){ui.sync=s;const el=$('#sync');if(el){el.className='chip '+syncCls();el.textContent=syncText()}}
 const syncText=()=>NATIVE?(nsx.err?L('A fájlba mentés nem sikerült','Saving to the file failed'):nsx.at?`${L('Fájlba mentve','Saved to file')} · ${hhmm(nsx.at)}`:L('Mentés a gépre bekapcsolva','Saving to this Mac')):fsx.h?(fsx.perm!=='granted'?L('Mentésfájl: engedély kell','Save file: needs permission'):fsx.err?L('A fájlba mentés nem sikerült','Saving to the file failed'):fsx.busy||!fsx.at?L('Mentés fájlba…','Saving to file…'):`${L('Fájlba mentve','Saved to file')}: ${fsx.name} · ${hhmm(fsx.at)}`):({saved:L('Mentve a fiókodba','Saved to your account'),saving:L('Mentés…','Saving…'),local:IN_ARTIFACT?L('Mentve ezen az eszközön','Saved on this device'):L('Mentve ebben a böngészőben','Saved in this browser'),error:L('Fiókmentés sikertelen – helyben megvan','Account save failed – kept locally')}[ui.sync]);
 async function flush(){if(!db)return;const ids=[...dirty];dirty.clear();try{
-  for(const id of ids){const c=S.chars.find(x=>x.id===id);if(!c||c.example)continue;await db.collection(base).doc(id).set({kind:'char',name:c.name||'',updatedAt:c.updatedAt,json:JSON.stringify(c)})}
+  for(const id of ids){const c=S.chars.find(x=>x.id===id)||S.camps.find(x=>x.id===id);if(!c||c.example)continue;await db.collection(base).doc(id).set({kind:c.kind==='camp'?'camp':'char',name:c.name||'',updatedAt:c.updatedAt,json:JSON.stringify(c)})}
   setSync('saved')}catch(e){ids.forEach(i=>dirty.add(i));setSync('error')}}
 async function initRemote(){try{
   if(!window.claude||!window.claude.use)return;
@@ -515,11 +529,12 @@ async function initRemote(){try{
   const snap=await d.collection(base).get();db=d;
   let remoteDel=[],n=0;
   for(const doc of snap.docs){const x=doc.data()||{};if(doc.id==='meta-deleted'){remoteDel=x.ids||[];continue}
+   if(x.kind==='camp'&&x.json){if(S.deleted.includes(doc.id)){d.collection(base).doc(doc.id).delete().catch(()=>{});continue}try{const rk=JSON.parse(x.json),lk=S.camps.find(k=>k.id===doc.id);if(lk&&(lk.updatedAt||0)>(rk.updatedAt||0))dirty.add(doc.id);else mergeCamps([rk])}catch(e){}continue}
    if(x.kind!=='char'||!x.json)continue;if(S.deleted.includes(doc.id)){d.collection(base).doc(doc.id).delete().catch(()=>{});continue}
    n++;let rc;try{rc=JSON.parse(x.json)}catch(e){continue}
    const i=S.chars.findIndex(c=>c.id===doc.id);if(i<0)S.chars.push(rc);else if((rc.updatedAt||0)>(S.chars[i].updatedAt||0))S.chars[i]=rc;else if((rc.updatedAt||0)<(S.chars[i].updatedAt||0))dirty.add(doc.id)}
   S.chars=S.chars.filter(c=>!remoteDel.includes(c.id));S.deleted=[...new Set([...S.deleted,...remoteDel])];
-  const rids=snap.docs.map(x=>x.id);S.chars.forEach(c=>{if(!rids.includes(c.id)&&!c.example)dirty.add(c.id)});
+  const rids=snap.docs.map(x=>x.id);S.chars.forEach(c=>{if(!rids.includes(c.id)&&!c.example)dirty.add(c.id)});S.camps.forEach(k=>{if(!rids.includes(k.id))dirty.add(k.id)});S.camps=S.camps.filter(k=>!remoteDel.includes(k.id));
   if(n&&S.chars.some(c=>!c.example))S.chars=S.chars.filter(c=>!c.example);
   if(!S.chars.find(c=>c.id===S.cur))S.cur=S.chars[0]&&S.chars[0].id;
   S.chars.forEach(normalize);saveLocal();render();if(dirty.size){setSync('saving');flush()}else setSync('saved');
@@ -531,11 +546,11 @@ function log(text,c){c=c||cur();const e={t:Date.now(),x:text};c.rolls.unshift(e)
 const hhmm=t=>{const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 
 /* ============ form builders ============ */
-const fText=(p,ph,extra)=>`<input type="text" id="${fid(p)}" data-bind="${p}" value="${esc(getP(cur(),p))}" placeholder="${esc(ph||'')}" ${extra||''}>`;
-const fNum=(p,min,max)=>`<input type="number" id="${fid(p)}" data-bind="${p}" data-num value="${esc(getP(cur(),p))}" min="${min}" max="${max}">`;
-const fArea=(p,ph,rows)=>`<textarea id="${fid(p)}" data-bind="${p}" rows="${rows||4}" placeholder="${esc(ph||'')}">${esc(getP(cur(),p))}</textarea>`;
-const fSel=(p,opts,extra)=>{const v=getP(cur(),p);return `<select id="${fid(p)}" data-bind="${p}" ${extra||''}>${opts.map(o=>`<option value="${esc(o[0])}" ${String(o[0])===String(v)?'selected':''}>${esc(o[1])}</option>`).join('')}</select>`};
-const stepper=(p,min,max)=>`<span class="step"><button type="button" data-act="step" data-p="${p}" data-d="-1" data-min="${min}" data-max="${max}" aria-label="−">−</button><b class="num">${getP(cur(),p)}</b><button type="button" data-act="step" data-p="${p}" data-d="1" data-min="${min}" data-max="${max}" aria-label="+">+</button></span>`;
+const fText=(p,ph,extra)=>`<input type="text" id="${fid(p)}" data-bind="${p}" value="${esc(getP(bindRoot(),p))}" placeholder="${esc(ph||'')}" ${extra||''}>`;
+const fNum=(p,min,max)=>`<input type="number" id="${fid(p)}" data-bind="${p}" data-num value="${esc(getP(bindRoot(),p))}" min="${min}" max="${max}">`;
+const fArea=(p,ph,rows)=>`<textarea id="${fid(p)}" data-bind="${p}" rows="${rows||4}" placeholder="${esc(ph||'')}">${esc(getP(bindRoot(),p))}</textarea>`;
+const fSel=(p,opts,extra)=>{const v=getP(bindRoot(),p);return `<select id="${fid(p)}" data-bind="${p}" ${extra||''}>${opts.map(o=>`<option value="${esc(o[0])}" ${String(o[0])===String(v)?'selected':''}>${esc(o[1])}</option>`).join('')}</select>`};
+const stepper=(p,min,max)=>`<span class="step"><button type="button" data-act="step" data-p="${p}" data-d="-1" data-min="${min}" data-max="${max}" aria-label="−">−</button><b class="num">${getP(bindRoot(),p)}</b><button type="button" data-act="step" data-p="${p}" data-d="1" data-min="${min}" data-max="${max}" aria-label="+">+</button></span>`;
 const lab=(t,inner)=>`<label class="f"><span>${t}</span>${inner}</label>`;
 const optsOf=o=>Object.entries(o).map(([k,v])=>[k,lang==='hu'&&v.hu!==v.en?`${v.hu} (${v.en})`:v.en]);
 const featBlock=(src,f)=>`<div class="feat"><span class="src">${src}</span><h3>${N(f.n)}</h3>${TX(f.t)}</div>`;
@@ -554,7 +569,8 @@ function renderBar(){const c=cur(),v=ui.view;
   <button class="btn sm" data-act="lang">${lang==='hu'?'English':'Magyar'}</button></div>
  ${v==='home'?'':`<div class="row" style="margin-top:8px"><button class="btn sm" data-act="home">← ${L('Kezdőlap','Home')}</button>
   ${v==='char'&&c?`<select id="charSel" data-chg="selChar" aria-label="${L('Karakter','Character')}">${S.chars.filter(x=>(x.game||'dh')===(c.game||'dh')).map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${esc(x.name||L('Névtelen','Unnamed'))} · ${esc(charCls(x))} ${x.level}</option>`).join('')}</select><span class="tag">${gameName(c.game||'dh')}</span>
-  <button class="btn sm" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button>`:`<b style="font-family:var(--display);font-size:1.15rem">${L('Szabálykönyv','Rulebook')} · ${gameName(S.game)}</b>`}</div>`}
+  <button class="btn sm" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button>`:v==='camp'?`<b style="font-family:var(--display);font-size:1.15rem">${esc(curCamp().name||L('Névtelen kampány','Unnamed campaign'))}</b><span class="tag">${L('Kalandmester','Game master')} · ${gameName(curCamp().game)}</span>`:`<b style="font-family:var(--display);font-size:1.15rem">${L('Szabálykönyv','Rulebook')} · ${gameName(S.game)}</b>`}</div>`}
+ ${v==='camp'&&curCamp().creating==null?`<nav class="tabs" role="tablist">${G_TABS.map(t=>`<button role="tab" aria-selected="${G().tab===t[0]}" data-act="gTab" data-t="${t[0]}">${P(t[1])}</button>`).join('')}</nav>`:''}
  ${v==='char'&&c&&c.creating==null?`<nav class="tabs" role="tablist">${tabsFor(c).map(t=>`<button role="tab" aria-selected="${ui.tab===t[0]}" data-act="tab" data-t="${t[0]}">${P(t[1])}</button>`).join('')}</nav>`:''}`}
 function vHome(){const g=S.game,list=S.chars.filter(c=>(c.game||'dh')===g);if(g==='dnd')dNeed('data');
  const card=c=>{const col=c.game==='dnd'?(D_COL[c.classId]||D_COL.fighter):(CLASSES[c.classId]?CLASSES[c.classId].domains.map(x=>`var(--d-${x})`):['var(--fear)','var(--fear)']);
@@ -567,9 +583,10 @@ function vHome(){const g=S.game,list=S.chars.filter(c=>(c.game||'dh')===g);if(g=
   <div class="row homeact"><button class="btn pri big" data-act="newChar">+ ${L('Új karakter létrehozása','Create a new character')}</button>${g==='dh'?`<button class="btn big" data-act="randChar">${L('Véletlen karakter','Random character')}</button>`:''}<button class="btn big" data-act="openRules">${L('Szabálykönyv','Rulebook')}</button><button class="btn big" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button></div></div>
  <h2>${L('Karaktereid','Your characters')} · ${gameName(g)} <span class="muted num">${list.length}</span></h2>
  ${list.length?`<div class="cgrid">${list.map(card).join('')}</div>`:`<div class="panel"><p class="muted">${L(`Még nincs ${gameName(g)}-karaktered. Az „Új karakter létrehozása” gomb végigvezet az alkotáson.`,`No ${gameName(g)} characters yet. “Create a new character” walks you through making one.`)}</p></div>`}
+ ${gHome()}
  </section>`}
 function render(){const ae=document.activeElement,aid=ae&&ae.id,pos=ae&&ae.selectionStart;
- lang=S.lang;document.documentElement.lang=lang;if(ui.view==='char'&&!cur())ui.view='home';
+ lang=S.lang;document.documentElement.lang=lang;if(ui.view==='char'&&!cur())ui.view='home';if(ui.view==='camp'&&!curCamp())ui.view='home';
  const c=cur(),v=ui.view;if(v==='char'&&!tabsFor(c).some(t=>t[0]===ui.tab))ui.tab='sheet';
  renderBar();let h='';
  if(ui.imp)h+=vImport(c);
@@ -577,6 +594,7 @@ function render(){const ae=document.activeElement,aid=ae&&ae.id,pos=ae&&ae.selec
  if(fsx.err==='foreign')h+=`<div class="note d" style="margin-bottom:14px">${L('A kiválasztott fájl nem ennek az appnak a mentése, ezért nem írtam felül. Válassz másik fájlt, vagy hozz létre újat.','The chosen file is not a save from this app, so it was left untouched. Pick another file or create a new one.')}</div>`;
  if(v==='home')h+=vHome();
  else if(v==='rules')h+=vRules();
+ else if(v==='camp')h+=gView();
  else if(c.game==='dnd'){if(!dNeed('data'))h+=dLoading('data');else{const d=dDerive(c);h+=c.creating!=null?dWizard(c,d):dVitals(c,d)+dView(c,d)}}
  else{const d=derive(c);
   if(c.example)h+=`<div class="note" style="margin-bottom:14px">${L('Ez egy <b>példakarakter</b>, hogy lásd, mit tud a lap. Szerkeszd bátran, vagy kezdj újat a kezdőlapon.','This is an <b>example character</b> to show what the sheet does. Edit it freely, or start fresh from the home screen.')}</div>`;
@@ -971,7 +989,9 @@ function vImport(c){return `<div class="panel" style="margin-bottom:14px"><h2>${
  <p class="small muted" style="margin-top:6px">${L('Betölthető: JSON-mentés, valamint az ebből az appból exportált HTML és nyomtatott PDF (ezek végén egy apró betűs adatblokk van, abból áll vissza a karakter). Más forrásból származó, pl. hivatalos kitölthető PDF-et nem tud beolvasni. A profilkép csak a JSON-mentésben utazik.','Loads: JSON backups, plus HTML exported and PDFs printed from this app (they end with a small-print data block the character is restored from). PDFs from other sources, e.g. the official form-fillable sheet, cannot be read. The portrait travels only in the JSON backup.')}</p>
  <p class="small" id="expMsg" style="margin-top:6px;min-height:1.2em"></p>
  <textarea id="impTxt" rows="3" placeholder="${L('…vagy illeszd be ide a JSON-t','…or paste the JSON here')}"></textarea><div class="row" style="margin-top:6px"><button class="btn sm" data-act="impPaste">${L('Beillesztett JSON betöltése','Load pasted JSON')}</button><span class="grow"></span><button class="btn sm" data-act="toggleImp">${L('Bezár','Close')}</button></div></div>`}
-function importChar(txt){try{const o=JSON.parse(txt);const list=(Array.isArray(o)?o:o&&Array.isArray(o.chars)?o.chars:[o]).filter(x=>x&&(x.game==='dnd'||CLASSES[x.classId]));if(!list.length)throw 0;let last;
+function importChar(txt){try{const o=JSON.parse(txt);const cl=(Array.isArray(o)?o:o&&Array.isArray(o.camps)?o.camps:[o]).filter(x=>x&&x.kind==='camp');if(cl.length){mergeCamps(cl);saveLocal()}
+  const list=(Array.isArray(o)?o:o&&Array.isArray(o.chars)?o.chars:[o]).filter(x=>x&&x.kind!=='camp'&&(x.game==='dnd'||CLASSES[x.classId]));
+  if(!list.length){if(!cl.length)throw 0;S.game=cl[0].game||'dh';ui.view='home';ui.imp=false;cl.forEach(k=>dirty.add(k.id));saveLocal();render();return}let last;
   for(const x of list){const c=normalize(Object.assign(x.game==='dnd'?dNewChar():newChar(),x,{id:'c-'+uid6(),creating:null}));delete c.example;S.chars.push(c);c.updatedAt=Date.now();dirty.add(c.id);last=c}
   S.cur=last.id;S.game=last.game||'dh';ui.view='char';ui.tab='sheet';ui.imp=false;touch(last);render()}catch(e){expMsg(L('Ez nem érvényes karakterfájl.','That is not a valid character file.'))}}
 
@@ -1015,7 +1035,7 @@ const A={
  async expHtml(){const c=cur();saveFile(fileBase(c)+'.html',sheetHtml(c,await packChar(c)),'text/html')},
  expMd(){const c=cur();saveFile(fileBase(c)+'.md',sheetMd(c,derive(c)),'text/markdown')},
  expJson(){const c=cur();if(!c)return;saveFile(fileBase(c)+'.json',JSON.stringify(c,null,1),'application/json')},
- expAll(){saveFile('daggerheart-karakterek.json',JSON.stringify({chars:S.chars},null,1),'application/json')},
+ expAll(){saveFile('daggerheart-karakterek.json',JSON.stringify({chars:S.chars,camps:S.camps},null,1),'application/json')},
  expMdCopy(){A.copyTxt(sheetMd(cur(),derive(cur())))},
  expCopy(){A.copyTxt(JSON.stringify(cur()))},
  copyTxt(txt){const fb=()=>{const t=$('#impTxt');t.value=txt;t.select();expMsg(L('Jelöld ki és másold a lenti szöveget.','Select and copy the text below.'))};
@@ -1026,7 +1046,7 @@ const A={
  classChanged(){const c=cur();c.subId=CLASSES[c.classId].subs[0].id;if(c.level===1&&c.creating!=null)c.cards=[];ui.cardDom=null},
  anc1Changed(){const c=cur();if(c.creating!=null)c.anc2=c.anc1},
  clank(x){cur().clankExp=+x.i;touch();render()},
- step(x){const c=cur();let v=(+getP(c,x.p)||0)+ +x.d;v=clamp(v,+x.min,+x.max);setP(c,x.p,v);
+ step(x){const c=bindRoot();let v=(+getP(c,x.p)||0)+ +x.d;v=clamp(v,+x.min,+x.max);setP(c,x.p,v);
   if(x.p.startsWith('gold.')){const g=c.gold;if(g.handfuls>9){if(g.bags<9||g.chests<1){g.handfuls=0;g.bags++}else g.handfuls=9}if(g.handfuls<0){if(g.bags>0){g.bags--;g.handfuls=9}else g.handfuls=0}if(g.bags>9){if(g.chests<1){g.bags=0;g.chests=1}else g.bags=9}if(g.bags<0){if(g.chests>0){g.chests--;g.bags=9}else g.bags=0}}
   touch();render()},
  pip(x){const c=cur(),i=+x.i;c[x.k]=c[x.k]===i+1?i:i+1;touch();render()},
@@ -1131,15 +1151,16 @@ const A={
 
 /* ============ events ============ */
 let reT=null;
-document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;if(el.tagName==='A')e.preventDefault();const a=el.dataset.act;if(!['delChar','lvlUndo','sessDel','noteDel'].includes(a))ui.confirm=null;A[a](el.dataset,el)});
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;if(el.tagName==='A')e.preventDefault();const a=el.dataset.act;if(!['delChar','lvlUndo','sessDel','noteDel','gRm','gDelCamp','gEncReset'].includes(a))ui.confirm=null;A[a](el.dataset,el)});
 document.addEventListener('input',e=>{const el=e.target;
- if(el.dataset.bind){let v=el.type==='checkbox'?el.checked:el.value;if(el.dataset.num!==undefined||el.type==='number')v=v===''?0:+v;setP(cur(),el.dataset.bind,v);touch()}
+ if(el.dataset.bind){let v=el.type==='checkbox'?el.checked:el.value;if(el.dataset.num!==undefined||el.type==='number')v=v===''?0:+v;setP(bindRoot(),el.dataset.bind,v);touch()}
  if(el.dataset.ui){setP(ui,el.dataset.ui,el.value)}
+ if(el.dataset.live!==undefined){clearTimeout(reT);reT=setTimeout(render,220)}
  if(el.id==='ruleQ'){ui.rule.q=el.value;const r=$('#ruleRes');if(r)r.innerHTML=ruleResults()}});
 document.addEventListener('change',e=>{const el=e.target;
  if(el.id==='impFile'&&el.files[0]){importFile(el.files[0]);return}
  if(el.dataset.chg){if(el.dataset.bind){/* value already set by input */}A[el.dataset.chg](el.dataset,el);if(el.dataset.bind){touch();render()}return}
- if(el.tagName==='SELECT'&&(el.dataset.bind||el.dataset.ui)){if(el.dataset.bind){let v=el.value;if(el.dataset.num!==undefined)v=+v;setP(cur(),el.dataset.bind,v);touch()}else setP(ui,el.dataset.ui,el.value);return render()}
+ if(el.tagName==='SELECT'&&(el.dataset.bind||el.dataset.ui)){if(el.dataset.bind){let v=el.value;if(el.dataset.num!==undefined)v=+v;setP(bindRoot(),el.dataset.bind,v);touch()}else setP(ui,el.dataset.ui,el.value);return render()}
  if(el.type==='number'||el.dataset.re!==undefined){clearTimeout(reT);reT=setTimeout(render,250)}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id&&e.target.id.startsWith('ev_')){A.sessEv({i:e.target.id.slice(3)})}});
 
@@ -1156,8 +1177,8 @@ function exampleChar(){const c=newChar();Object.assign(c,{example:true,creating:
  const t=Date.now()-864e5;c.sessions=[{id:uid6(),date:new Date(t).toISOString().slice(0,10),title:L('Session 1 – A beomlott torony','Session 1 – The fallen tower'),level:1,summary:L('A csapat megtalálta a torony bejáratát, és legyőzte a csontvázőrt. Szintet léptünk.','The party found the tower entrance and beat the skeletal warden. We levelled up.'),npcs:L('Borbála, a révész','Borbála the ferrywoman'),loot:L('1 marék arany, egy rúnás kulcs','1 handful of gold, a runed key'),
   events:[{t:t,x:L('Session elindítva','Session started')},{t:t+6e5,x:L('Tudás dobás: 17 (9/6) – Reménnyel','Knowledge roll: 17 (9/6) – with Hope')},{t:t+15e5,x:L('7 sebzés elszenvedve → 1 ÉP (páncélhely jelölve)','Took 7 damage → 1 HP (Armor Slot marked)')},{t:t+72e5,x:L('Szintlépés: 2. szint','Levelled up to 2')}]}];
  return c}
-function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);
- if(NATIVE&&window.DH_NATIVE_DATA){try{const o=JSON.parse(window.DH_NATIVE_DATA);mergeChars(Array.isArray(o)?o:o.chars||[],o.deleted)}catch(e){nsx.err='read'}}if(!S.chars.length){const c=exampleChar();S.chars=[c];S.cur=c.id}lang=S.lang||'hu';
+function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);if(typeof gNormalize==='function')S.camps.forEach(gNormalize);
+ if(NATIVE&&window.DH_NATIVE_DATA){try{const o=JSON.parse(window.DH_NATIVE_DATA);mergeChars(Array.isArray(o)?o:o.chars||[],o.deleted);mergeCamps(o.camps)}catch(e){nsx.err='read'}}if(!S.chars.length){const c=exampleChar();S.chars=[c];S.cur=c.id}lang=S.lang||'hu';
  const h=(location.hash||'').slice(1);if(h&&S.cur&&[...TABS,...D_TABS].some(t=>t[0]===h)){ui.tab=h;ui.view='char'}window.__booted=true;render();initRemote();initFile();if(NATIVE&&!nsx.err&&S.chars.some(c=>!c.example))natSoon();
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&fileT)fileWrite()});
  window.addEventListener('beforeprint',()=>fillPrint());
@@ -1165,9 +1186,10 @@ function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);
   // when a newer version of the app takes over, reload once so the page is never stale
   sw.addEventListener('controllerchange',()=>{if(had&&!done){done=true;location.reload()}});
   sw.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{})}}
-// dnd.js (loaded next) starts the app; if that file is missing, start anyway
+// gm.js (the last script) starts the app; if a script file is missing, start anyway
 window.addEventListener('load',()=>{if(!window.__booted)boot()});
 </script>
 <script src="dnd.js"></script>
+<script src="gm.js"></script>
 </body>
 </html>
