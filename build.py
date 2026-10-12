@@ -121,7 +121,9 @@ def build_dnd():
                           'base': a['base'], 'dex': bool(a.get('dex_bonus')), 'max': a.get('max_bonus'), 'str': e.get('str_minimum', 0), 'stealth': bool(e.get('stealth_disadvantage')), 'cost': cost})
         else:
             desc = fix(e.get('description', '')) or ', '.join(f"{k['quantity']}× {k['item']['name']}" for k in e.get('contents', []))
-            gear.append({'name': e['name'], 'cost': cost, 'desc': desc})
+            names = [k['name'] for k in e['equipment_categories']]
+            cat = next((n for n in names if n not in ('Adventuring Gear', 'Tools')), 'Adventuring Gear')
+            gear.append({'name': e['name'], 'cost': cost, 'desc': desc, 'cat': cat})
     out = {
         'classes': classes, 'species': species, 'backgrounds': bgs,
         'feats': [{'id': f['index'], 'name': f['name'], 'type': f['type'], 'd': fix(f['description'])} for f in JJ('Feats')],

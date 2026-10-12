@@ -181,7 +181,7 @@ function dGear(c,d){const coin=[['pp','PP'],['gp','GP'],['ep','EP'],['sp','SP'],
  <div class="stack"><div class="panel"><h2>${T('Érmék','Coins')}</h2><div class="row" style="gap:14px">${coin.map(k=>`<span>${k[1]} ${stepper('coins.'+k[0],0,99999)}</span>`).join('')}</div></div>
  <div class="panel"><h2>${T('Táska','Inventory')}</h2><div class="list">${c.items.map((it,i)=>`<div class="li"><span class="grow">${fText('items.'+i+'.name',L('Tárgy','Item'))}</span>${stepper('items.'+i+'.qty',0,999)}<button class="btn sm warn" data-act="delItem" data-i="${i}">×</button>${it.desc?`<div class="small muted" style="flex-basis:100%">${mdi(it.desc)}</div>`:''}</div>`).join('')}</div>
   <div class="row" style="margin-top:8px"><button class="btn sm" data-act="addItem" data-n="">+ ${L('Tárgy','Item')}</button></div>
-  <div style="margin-top:8px">${lab(L('Tárgy a szabálykönyv katalógusából','Item from the rulebook catalog'),dSel('d_gadd','dGearAdd',[['',L('— válassz —','— choose —')],...DND.gear.map((g,i)=>[i,g.name+(g.cost?' · '+g.cost:'')])],''))}</div></div></div></div></section>`}
+  <h3 style="margin-top:14px">${L('Tárgy a szabálykönyv katalógusából','Item from the rulebook catalog')}</h3>${catPicker('dndItems',DND.gear,'dGearAdd')}</div></div></div></section>`}
 
 function dLevel(c,d){const next=d.cls.levels[d.lvl];
  return `<section class="blk"><div class="panel"><div class="row"><h2 class="grow">${T('Szint','Level')} ${d.lvl} · ${T('Jártassági bónusz','Proficiency Bonus')} ${sgn(d.pb)}</h2>${d.lvl<20?`<button class="btn pri" data-act="dLevel" data-d="1">${L('Szintlépés','Level up')} → ${d.lvl+1}</button>`:''}${d.lvl>1?`<button class="btn warn" data-act="dLevel" data-d="-1">${L('Szint vissza','Level down')}</button>`:''}</div>
@@ -251,7 +251,7 @@ Object.assign(A,{
  dHitDie(){const c=cur(),d=dDerive(c),r=rnd(d.cls.hd),heal=Math.max(1,r+d.mod.con);c.hdUsed++;c.hp=Math.min(d.hpMax.v,d.hp+heal);log(L(`Életkocka: d${d.cls.hd}=${r} ${sgn(d.mod.con)} → +${heal} ÉP`,`Hit Die: d${d.cls.hd}=${r} ${sgn(d.mod.con)} → +${heal} HP`));touch();render()},
  dWeaponAdd(x,el){if(el.value){cur().weapons.push(el.value);touch();render()}},
  dWeaponDel(x){cur().weapons.splice(+x.i,1);touch();render()},
- dGearAdd(x,el){if(el.value==='')return;const g=DND.gear[+el.value];cur().items.push({name:g.name,qty:1,desc:g.desc});touch();render()},
+ dGearAdd(x){const g=DND.gear[+x.i];if(!g)return;const c=cur(),ex=c.items.find(q=>q.name===g.name);if(ex)ex.qty=(+ex.qty||0)+1;else c.items.push({name:g.name,qty:1,desc:g.desc});touch();render()},
  dSpFilter(x,el){ui.dsp[x.k]=el.value;render()},
  dSpellAdd(x){const c=cur(),s=DND.spl[x.id];c.spells.push({id:x.id,prep:s.lvl===0});touch();render()},
  dSpellDel(x){cur().spells.splice(+x.i,1);touch();render()},

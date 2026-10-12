@@ -206,6 +206,7 @@ blockquote{margin:0;padding:6px 12px;border-left:3px solid var(--fear);backgroun
 .dot.p1{background:var(--ink);border-color:var(--ink)} .dot.p2{background:var(--hope);border-color:var(--hope);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--hope)}
 .sk{flex:1;min-width:0;text-align:left;background:none;border:0;padding:4px 0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .sk:hover{text-decoration:underline}
 .hpbar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:6px} .hpbar i{display:block;height:100%;background:var(--ok)}
+.catlist{max-height:420px;overflow:auto;padding-right:4px}
 .origd{margin-top:2px} .origd>summary{font-family:var(--body);font-weight:400;font-size:.85rem;color:var(--muted)} .origd .ctext{color:var(--muted);font-style:italic;font-size:.9rem}
 .dfeat{border-bottom:1px dashed var(--line);padding:5px 0} .dfeat:last-of-type{border-bottom:0} .dfeat>summary{font-size:1rem} details.dfeat[open]>summary{margin-bottom:6px}
 .profbox small{font-size:.8rem;color:var(--muted)}
@@ -354,7 +355,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='2.2';
+const APP_VERSION='2.3';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -365,6 +366,19 @@ const HU=window.DH_HU||{cards:{},sub:{}};
 const hx=(tbl,name)=>(lang==='hu'&&HU[tbl]&&HU[tbl][name])||null;
 const biName=(tbl,name)=>{const h=hx(tbl,name);return h?T(esc(h[0]),esc(name)):esc(name)};
 const biText=(tbl,name,en)=>{const h=hx(tbl,name);return h?`${md(h[1])}<details class="origd"><summary>Angol eredeti</summary><div class="ctext">${md(en)}</div></details>`:md(en)};
+// item catalog: categories + search, shared by both games
+const CAT_HU={potion:'Italok',consumable:'Egyéb fogyóeszközök',relic:'Ereklyék',gem:'Drágakövek',recipe:'Receptek',wearable:'Viselhető tárgyak',gear:'Eszközök és egyéb',
+ 'Adventuring Gear':'Kalandozófelszerelés','Equipment Packs':'Felszereléscsomagok','Ammunition':'Lőszer','Arcane Foci':'Arkán fókuszok','Druidic Foci':'Druida fókuszok','Holy Symbols':'Szent szimbólumok',"Artisan's Tools":'Kézműves szerszámok','Musical Instruments':'Hangszerek','Gaming Sets':'Játékkészletek','Other Tools':'Egyéb eszközök'};
+const CAT_EN={potion:'Potions',consumable:'Other consumables',relic:'Relics',gem:'Gems',recipe:'Recipes',wearable:'Wearables',gear:'Gear and other'};
+const catLabel=c=>{const en=CAT_EN[c]||c;return lang==='hu'&&CAT_HU[c]?`${CAT_HU[c]} (${en})`:en};
+const DH_ITEMS=[...SRD.consumables.map(x=>({name:x.name,desc:x.desc,cat:/Potion/.test(x.name)?'potion':'consumable'})),
+ ...SRD.items.map(x=>({name:x.name,desc:x.desc,cat:/Recipe/.test(x.name)?'recipe':/Relic/.test(x.name)?'relic':/^Gem of/.test(x.name)?'gem':/Ring|Pendant|Amulet|Locket|Charm|Chain|Belt|Cloak|Gloves|Boots/.test(x.name)?'wearable':'gear'}))];
+function catPicker(key,items,act){const st=ui[key]||(ui[key]={q:'',cat:''}),q=st.q.trim().toLowerCase(),cats=[...new Set(items.map(x=>x.cat))];
+ const inQ=x=>!q||(x.name+' '+(x.desc||'')).toLowerCase().includes(q),all=items.map((x,i)=>[x,i]).filter(([x])=>inQ(x)),list=all.filter(([x])=>!st.cat||x.cat===st.cat);
+ return `<div class="row" style="margin-top:6px"><input type="search" id="cp_${key}" class="grow" data-ui="${key}.q" data-live value="${esc(st.q)}" placeholder="${L('Keresés név vagy leírás szerint (angolul)…','Search by name or description…')}"></div>
+ <div class="row" style="margin-top:6px;gap:4px"><button class="btn sm ${!st.cat?'fear':''}" data-act="catSet" data-key="${key}" data-c="">${L('Mind','All')} <span class="num">${all.length}</span></button>${cats.map(c=>{const n=all.filter(([x])=>x.cat===c).length;return `<button class="btn sm ${st.cat===c?'fear':''}" data-act="catSet" data-key="${key}" data-c="${esc(c)}" ${n?'':'disabled'}>${esc(catLabel(c))} <span class="num">${n}</span></button>`}).join('')}</div>
+ <div class="list catlist" style="margin-top:8px">${list.slice(0,40).map(([x,i])=>`<div class="li top catrow"><details class="grow"><summary>${esc(x.name)}${x.cost?` <span class="tag h">${esc(x.cost)}</span>`:''} <span class="small muted" style="font-family:var(--body);font-weight:400">${esc(catLabel(x.cat))}</span></summary><div class="ctext small">${mdi(x.desc||'—')}</div></details><button class="btn sm pri" data-act="${act}" data-i="${i}">+ ${L('Táskába','Add')}</button></div>`).join('')||`<p class="muted small">${L('Nincs találat.','No match.')}</p>`}</div>
+ ${list.length>40?`<p class="small muted" style="margin-top:6px">${L(`Az első 40 látszik a ${list.length} találatból – szűkíts a keresővel vagy a kategóriával.`,`Showing the first 40 of ${list.length} – narrow it with search or a category.`)}</p>`:''}`}
 const cardInfo=k=>CARDCAT.find(x=>x.name===k.name&&x.domain===k.domain);
 const wFind=n=>WCAT.find(w=>w.name===n),aFind=n=>ACAT.find(a=>a.name===n);
 const mkCard=(k,loc)=>({id:uid6(),name:k.name,domain:k.domain,level:k.level,type:k.type,recall:k.recall,notes:'',loc});
@@ -796,7 +810,7 @@ function vGear(c,d){return `<section class="blk"><div class="grid g2"><div class
  <div class="stack"><div class="panel"><h2>${T('Arany','Gold')}</h2><p class="small muted">${L('10 marék = 1 zsák, 10 zsák = 1 láda; az átváltást a lap elvégzi.','10 handfuls = 1 bag, 10 bags = 1 chest; the sheet converts for you.')}</p>
   <div class="row" style="margin-top:8px;gap:18px"><span>${T('Marék','Handfuls')} ${stepper('gold.handfuls',-1,10)}</span><span>${T('Zsák','Bags')} ${stepper('gold.bags',-1,10)}</span><span>${T('Láda','Chests')} ${stepper('gold.chests',0,1)}</span></div></div>
  <div class="panel"><h2>${T('Táska','Inventory')}</h2><div class="list">${c.items.map((it,i)=>`<div class="li"><span class="grow">${fText('items.'+i+'.name',L('Tárgy','Item'))}</span>${stepper('items.'+i+'.qty',0,99)}<button class="btn sm warn" data-act="delItem" data-i="${i}" aria-label="${L('Törlés','Delete')}">×</button>${it.desc?`<div class="small muted" style="flex-basis:100%">${mdi(it.desc)}</div>`:''}</div>`).join('')}</div>
-  <div style="margin-top:8px">${lab(L('Tárgy a szabálykönyv katalógusából (leírással)','Item from the rulebook catalog (with description)'),`<select id="itCat" data-chg="addCatItem"><option value="">${L('— válassz —','— choose —')}</option><optgroup label="${L('Fogyóeszközök (Consumables)','Consumables')}">${SRD.consumables.map((x,i)=>`<option value="c${i}">${esc(x.name)}</option>`).join('')}</optgroup><optgroup label="${L('Tárgyak (Items)','Items')}">${SRD.items.map((x,i)=>`<option value="i${i}">${esc(x.name)}</option>`).join('')}</optgroup></select>`)}</div>
+  <h3 style="margin-top:14px">${L('Tárgy a szabálykönyv katalógusából','Item from the rulebook catalog')}</h3>${catPicker('dhItems',DH_ITEMS,'addCatItem')}
   <div class="row" style="margin-top:8px"><button class="btn sm" data-act="addItem" data-n="">+ ${L('Tárgy','Item')}</button><button class="btn sm" data-act="addItem" data-n="${L('Kisebb gyógyital (Minor Health Potion)','Minor Health Potion')}">+ ${L('Gyógyital','Health potion')}</button><button class="btn sm" data-act="addItem" data-n="${L('Kisebb állóképesség-ital (Minor Stamina Potion)','Minor Stamina Potion')}">+ ${L('Állóképesség-ital','Stamina potion')}</button></div>
   <p class="small muted" style="margin-top:8px">${T('Kisebb gyógyital','Minor Health Potion')}: ${L('1d4 ÉP törlése','clear 1d4 HP')} · ${T('Kisebb állóképesség-ital','Minor Stamina Potion')}: ${L('1d4 Stressz törlése','clear 1d4 Stress')}</p></div></div></div></section>`}
 
@@ -1053,7 +1067,8 @@ const A={
  setArmor(x,el){if(el.value==='')return;cur().armor=el.value==='none'?null:mkArmor(ACAT[+el.value]);touch();render()},
  sugTraits(){const c=cur(),v=CLASSES[c.classId].sug.traits.split(',').map(x=>parseInt(x.replace('+','').trim(),10));TRAITS.forEach((t,i)=>c.traits[t.id]=v[i]||0);touch();render()},
  sugGear(){const c=cur(),g=CLASSES[c.classId].sug;c.primary=mkWeapon(wFind(g.primary))||c.primary;c.secondary=mkWeapon(wFind(g.secondary));c.armor=mkArmor(aFind(g.armor))||c.armor;touch();render()},
- addCatItem(x,el){const v=el.value;if(!v)return;const it=(v[0]==='c'?SRD.consumables:SRD.items)[+v.slice(1)];cur().items.push({name:it.name,qty:1,desc:it.desc});touch();render()},
+ addCatItem(x){const it=DH_ITEMS[+x.i];if(!it)return;const c=cur(),ex=c.items.find(q=>q.name===it.name);if(ex)ex.qty=(+ex.qty||0)+1;else c.items.push({name:it.name,qty:1,desc:it.desc});touch();render()},
+ catSet(x){ui[x.key].cat=x.c;render()},
  ruleOpen(x){const i=+x.i;if(ui.view==='char')ui.tab='rules';ui.rule.ch=RULES[i].ch;ui.rule.hl=x.nohl?null:qToks(ui.rule.q);try{history.replaceState(null,'','#rules')}catch(e){}render();const el=document.getElementById('rs_'+i);if(el&&el.scrollIntoView)el.scrollIntoView({block:'start'})},
  ruleGo(x){const i=RULES.findIndex(r=>slug(r.t)===x.slug);if(i>=0)A.ruleOpen({i,nohl:1})},
  ruleChap(x,el){ui.rule.ch=+el.value;ui.rule.hl=null;render()},
