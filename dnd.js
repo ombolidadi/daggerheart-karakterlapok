@@ -70,7 +70,7 @@ function dPips(path,max,on,cls){let h='';for(let i=0;i<max;i++)h+=`<button type=
 /* ---------- hero + vitals ---------- */
 function dVitals(c,d){const col=D_COL[c.classId]||D_COL.fighter;
  return `<div class="hero" style="--c1:${col[0]};--c2:${col[1]}">
-  <label class="portrait" title="${L('Profilkép feltöltése','Upload a portrait')}">${c.portrait?`<img src="${c.portrait}" alt="">`:`<span>${esc((c.name||'?').trim()[0]||'?')}</span>`}<input type="file" accept="image/*" data-chg="portrait" hidden></label>
+  <label class="portrait" title="${L('Profilkép feltöltése','Upload a portrait')}">${portraitInner(c)}<input type="file" accept="image/*" data-chg="portrait" hidden></label>
   <div class="grow"><div class="nm">${esc(c.name||L('Névtelen hős','Unnamed hero'))}</div><div class="sub">${dT(d.sp.name)}${d.lin?' ('+esc(d.lin.name.replace(/^.*?: /,''))+')':''} · ${dT(d.cls.name)}${d.lvl>=3&&d.cls.sub?' · '+esc(d.cls.sub.name):''} · ${dT(d.bg.name)}${c.pronouns?' · '+esc(c.pronouns):''}</div>
    <div class="row" style="margin-top:6px;gap:6px"><span class="tag">D&amp;D 5e · SRD 5.2</span>${c.insp?`<span class="tag">${T('Hősi ihlet','Heroic Inspiration')}</span>`:''}${c.conds.map(k=>`<span class="tag cond">${esc(dP(k))}</span>`).join('')}${+c.exhaustion?`<span class="tag cond">${dP('Exhaustion')} ${c.exhaustion}</span>`:''}</div></div>
   <div class="lvl"><span>${L('SZINT','LEVEL')}</span><b class="num">${d.lvl}</b></div></div>
@@ -84,10 +84,10 @@ function dVitals(c,d){const col=D_COL[c.classId]||D_COL.fighter;
  </div>`}
 
 /* ---------- editors (wizard + sheet) ---------- */
-function dEdIdentity(c,d){return `<div class="grid g2">${lab(L('Név','Name'),fText('name',L('A hősöd neve','Your hero\'s name'),'data-re'))}${lab(L('Névmások','Pronouns'),fText('pronouns',''))}
+function dEdIdentity(c,d){return `<div class="grid g2">${nameField()}${lab(L('Névmások','Pronouns'),fText('pronouns',''))}
  ${lab(T('Osztály','Class'),dSel('d_cls','dSet',DND.classes.map(x=>[x.id,dOpt(x.name)]),c.classId,'data-k="classId"'))}${lab(T('Jellem','Alignment'),fText('alignment',''))}</div>
  <p class="small muted" style="margin-top:8px">${T('Életkocka','Hit Point Die')} <b>d${d.cls.hd}</b> · ${T('Elsődleges tulajdonság','Primary ability')}: <b>${esc(d.cls.primary)}</b> · ${T('Mentődobások','Saving throws')}: <b>${d.cls.saves.map(a=>dP(D_ABM[a].en)).join(', ')}</b> · ${T('Jártasságok','Proficiencies')}: ${esc(d.cls.profs.join(', '))}${d.cls.choices.length?' · '+esc(d.cls.choices.join('; ')):''}</p>
- <div class="row" style="margin-top:8px">${c.portrait?`<img src="${c.portrait}" alt="" style="width:40px;height:50px;object-fit:cover;border-radius:6px">`:''}<label class="btn sm">${c.portrait?L('Profilkép cseréje','Change portrait'):L('Profilkép feltöltése','Upload a portrait')}<input type="file" accept="image/*" data-chg="portrait" hidden></label>${c.portrait?`<button class="btn sm warn" data-act="portraitDel">${L('Kép törlése','Remove portrait')}</button>`:''}</div>`}
+ ${portraitTools(c)}`}
 function dEdOrigin(c,d){const tot=d.bg.abil.reduce((q,a)=>q+(+c.bgBonus[a]||0),0),mx=Math.max(0,...d.bg.abil.map(a=>+c.bgBonus[a]||0)),ok=tot===3&&mx<=2;
  return `<div class="grid g2">${lab(T('Háttér','Background'),dSel('d_bg','dSet',DND.backgrounds.map(x=>[x.id,dOpt(x.name)]),c.bgId,'data-k="bgId"'))}${lab(T('Faj','Species'),dSel('d_sp','dSet',DND.species.map(x=>[x.id,dOpt(x.name)]),c.speciesId,'data-k="speciesId"'))}
   ${d.sp.sub.length?lab(T('Vérvonal / örökség','Lineage / ancestry'),dSel('d_lin','dSet',[['','—'],...d.sp.sub.map(x=>[x.id,x.name])],c.lineageId,'data-k="lineageId"')):''}</div>

@@ -218,6 +218,13 @@ blockquote{margin:0;padding:6px 12px;border-left:3px solid var(--fear);backgroun
 .dot.p1{background:var(--ink);border-color:var(--ink)} .dot.p2{background:var(--hope);border-color:var(--hope);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--hope)}
 .sk{flex:1;min-width:0;text-align:left;background:none;border:0;padding:4px 0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .sk:hover{text-decoration:underline}
 .hpbar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:6px} .hpbar i{display:block;height:100%;background:var(--ok)}
+.sil{width:100%;height:100%;display:block;fill:rgba(255,255,255,.92)}
+.portrait .sil,.cport .sil{padding-top:6%}
+.pthumb{flex:0 0 auto;width:44px;height:55px;border-radius:22px 22px 6px 6px;overflow:hidden;background:var(--ink);display:block} .pthumb img{width:100%;height:100%;object-fit:cover;display:block} .pthumb .sil{fill:var(--bg)}
+.silgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px;margin-top:8px}
+.silpick{display:flex;flex-direction:column;align-items:center;gap:2px;border:2px solid var(--line);border-radius:8px;background:var(--ink);padding:6px 4px 3px;cursor:pointer;min-width:0}
+.silpick .sil{width:52px;height:65px;fill:var(--bg)} .silpick span{font-size:.72rem;color:var(--bg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.silpick.on{border-color:var(--hope);box-shadow:0 0 0 2px var(--hope)} .silpick:hover{border-color:var(--hope)}
 .item{border-bottom:1px dashed var(--line);padding:6px 0;min-width:0} .item:last-child{border-bottom:0} .item.open{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:10px}
 .catlist{max-height:420px;overflow:auto;padding-right:4px}
 .origd{margin-top:2px} .origd>summary{font-family:var(--body);font-weight:400;font-size:.85rem;color:var(--muted)} .origd .ctext{color:var(--muted);font-style:italic;font-size:.9rem}
@@ -368,7 +375,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='2.4';
+const APP_VERSION='2.5';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -395,6 +402,66 @@ function itemRow(it,i,maxQty){const open=ui.itOpen===i,f=it.fields||[],p='items.
   <div class="row" style="margin-top:6px;gap:4px"><button class="btn sm pri" data-act="itemField" data-i="${i}">+ ${L('Érték','Value')}</button>${sug.map(k=>`<button class="btn sm" data-act="itemField" data-i="${i}" data-k="${esc(k)}">+ ${esc(k)}</button>`).join('')}</div></div></div>`
  :`${f.filter(q=>q.k||q.v).length?`<div class="row" style="gap:4px;margin-top:4px">${f.filter(q=>q.k||q.v).map(q=>`<span class="tag h">${esc(q.k)}${q.k&&q.v?': ':''}<b>${esc(q.v)}</b></span>`).join('')}</div>`:''}${it.desc?`<div class="small muted" style="margin-top:3px">${mdl(it.desc)}</div>`:''}`}</div>`}
 const itemMd=i=>`- ${i.name||'—'}${i.qty!==1?' × '+i.qty:''}${(i.fields||[]).filter(q=>q.k||q.v).map(q=>` · ${q.k}${q.k&&q.v?': ':''}${q.v}`).join('')}${i.desc?' — '+String(i.desc).replace(/\n+/g,' '):''}`;
+/* ---------- name generator ---------- */
+const NG={
+ human:{a:['Al','Ber','Cor','Dar','El','Fen','Gar','Hal','Is','Jor','Kel','Lor','Mar','Ned','Or','Per','Ros','Sel','Tam','Val','Wil'],b:['','','a','e','i','o','an','en','ar','el'],m:['ric','den','mund','vin','ton','bert','rin','dor','wyn','ias'],f:['a','ia','ine','elle','wen','ys','ara','eth','ika','ena']},
+ elf:{a:['Ae','Ari','Cael','Ela','Fae','Gala','Ili','Lia','Mae','Nae','Syl','Thae','Vae','Yll'],b:['l','r','n','th','nd','ss','v'],m:['ion','ar','or','ael','ir','andil','orn'],f:['ia','iel','wen','ara','ith','yra','anna']},
+ dwarf:{a:['Bal','Bor','Dur','Thor','Grim','Har','Kaz','Mor','Rag','Thra','Ul','Brom','Dol'],b:['','','','in','um','ek','ar'],m:['in','ek','grim','dur','nar','bur','gar'],f:['a','hild','dis','ra','ga','runn','la']},
+ small:{a:['Bip','Fizz','Nib','Pip','Rik','Snik','Tog','Wim','Zib','Mil','Per','Dob','Kip','Luk'],b:['','','le','a','i','o','ke'],m:['kin','wick','bo','nock','zo','gle','ret','n'],f:['a','sy','let','nee','belle','li','wyn']},
+ fey:{a:['Lu','Mi','Ti','Pe','Zi','Ny','Fi','Sha','Ae','Li','Po'],b:['l','r','n','ll','m','lyx'],m:['o','ix','en','ander','iel'],f:['a','ia','ette','ina','wyn','en']},
+ harsh:{a:['Gro','Ur','Mog','Thok','Kar','Dra','Bru','Zug','Vor','Rag','Hru','Buck'],b:['','','g','k','r','sh'],m:['ak','ul','gar','nok','dush','mar','th'],f:['a','ga','sha','ra','ila','ush','na']},
+ dark:{a:['Az','Bel','Dam','Kael','Mal','Mor','Ne','Rav','Sor','Vex','Zar','Lil'],b:['','a','e','i','ak','ar'],m:['ius','os','ek','oth','ael','ion','us'],f:['ia','ith','ora','yx','ena','ara','is']},
+ draconic:{a:['Ar','Bal','Dra','Kri','Me','Nar','Rha','Sor','Tor','Vyr','Zor','Ghe'],b:['a','e','i','o','ja','sha'],m:['sar','rax','dan','thar','jin','nash','kor'],f:['ra','ssa','nna','rix','thia','mir','la']},
+ wild:{a:['Ta','Ki','Ro','Mu','Sa','Lu','Ne','Ba','Ho','Pa','Chi','Ze','Lo','Ra'],b:['','k','r','m','n','sh','ll','kk'],m:['o','u','en','ak','im','ar','ook','in'],f:['a','i','ee','ani','ira','una','esh']},
+ clank:{a:['Cog','Bolt','Rivet','Gear','Piston','Spark','Tinker','Brass','Copper','Whirr','Tick','Cinder'],b:[''],m:['','','-7','-12',' Mk II','worth','wright'],f:['','','a','-9','belle',' Mk III','lyn']}};
+const NG_STYLE={human:'human',elf:'elf',dwarf:'dwarf',halfling:'small',gnome:'small',goblin:'small',faerie:'fey',orc:'harsh',giant:'harsh',firbolg:'harsh',infernis:'dark',drakona:'draconic',katari:'wild',simiah:'wild',ribbet:'wild',galapa:'wild',faun:'wild',fungril:'wild',clank:'clank'};
+const NG_SUR={en:[['Keen','Storm','Raven','Iron','Swift','Ash','Bright','Dusk','Thorn','Silver','Oak','Wolf','Ember','Frost','Shadow','Gold','Stone','Wind','Night','Dawn'],['vigor','wing','brook','hand','blade','heart','song','walker','shield','thorn','fall','mane','whisper','forge','bloom','runner','watch','born']],
+ hu:[['Holló','Vas','Vihar','Ezüst','Tölgy','Farkas','Hamu','Parázs','Dér','Árny','Arany','Kő','Szél','Éj','Hajnal','Tüske','Sólyom','Csillag'],['szárny','kéz','szív','pajzs','járó','ének','őr','fi','völgyi','kovács','vágó','szem','láb','hegyi','falvi','ösvény']]};
+const NG_PLACE={en:[['Raven','Mist','Iron','Silver','Blood','Shadow','Oak','Dragon','Wolf','Frost','Thorn','Ember'],['stone','hold','vale','ford','peak','grove','bridge','haven','tower','mire','watch','hollow']],
+ hu:[['Holló','Köd','Vas','Ezüst','Vér','Árny','Tölgy','Sárkány','Farkas','Dér','Tüske','Parázs'],['kő','vár','völgy','rév','bérc','liget','hida','falva','torony','láp','őrs','mély']]};
+function genFirst(kind,sex){const g=NG[NG_STYLE[kind]||'human'],end=g[sex==='f'?'f':sex==='m'?'m':pick(['f','m'])];let n=pick(g.a)+pick(g.b)+pick(end);return n.replace(/(.)\1\1+/g,'$1$1')}
+function genName(kind,sex){const p=NG_SUR[lang==='hu'?'hu':'en'];return genFirst(kind,sex)+' '+pick(p[0])+pick(p[1])}
+function genPlace(){const p=NG_PLACE[lang==='hu'?'hu':'en'];const n=pick(p[0])+pick(p[1]);return Math.random()<.25?(lang==='hu'?n+' fogadó':'The '+n+' Inn'):n}
+const nameField=()=>lab(L('Név','Name'),`<span class="row" style="flex-wrap:nowrap;gap:6px">${fText('name',L('A hősöd neve','Your hero\'s name'),'data-re')}<button type="button" class="btn sm" data-act="genName" title="${L('Név generálása a faj és a nem alapján','Generate a name from ancestry and sex')}">${L('Generál','Generate')}</button></span>`);
+
+/* ---------- silhouettes: default portraits by ancestry / species, female and male ---------- */
+const silKind=c=>c.silKind||(c.game==='dnd'?({dragonborn:'drakona',goliath:'giant',tiefling:'infernis'}[c.speciesId]||c.speciesId):c.anc1)||'human';
+const silMir=d=>`<path d="${d}"/><path d="${d}" transform="translate(100,0) scale(-1,1)"/>`;
+const SB={m:'<path d="M6,125 C6,99 26,89 42,86 L58,86 C74,89 94,99 94,125 Z"/><rect x="42" y="66" width="16" height="24"/>',f:'<path d="M15,125 C15,101 31,91 44,87 L56,87 C69,91 85,101 85,125 Z"/><rect x="44" y="66" width="12" height="24"/>'};
+const SHEAD='<ellipse cx="50" cy="50" rx="18" ry="22"/>';
+const SHAIR={f:'<path d="M29,52 C24,20 76,20 71,52 C76,76 75,94 70,102 L62,92 L38,92 L30,102 C25,94 24,76 29,52 Z"/>',m:'<path d="M30,46 C27,20 73,20 70,46 C62,33 38,33 30,46 Z"/>'};
+const sBase=s=>SB[s]+SHEAD,sFull=s=>SB[s]+SHEAD+SHAIR[s];
+const SIL={
+ human:s=>[sFull(s),1],
+ elf:s=>[sFull(s)+silMir('M33,48 L12,28 L36,60 Z'),1],
+ halfling:s=>[sBase(s)+(s==='f'?SHAIR.f:'')+'<circle cx="36" cy="32" r="8"/><circle cx="50" cy="28" r="9"/><circle cx="64" cy="32" r="8"/>'+silMir('M33,50 L25,43 L34,58 Z'),.84],
+ gnome:s=>[sBase(s)+silMir('M33,50 L20,40 L35,60 Z')+(s==='f'?SHAIR.f+'<circle cx="30" cy="30" r="9"/><circle cx="70" cy="30" r="9"/>':'<path d="M30,36 L50,2 L70,36 Z"/><path d="M38,66 L50,88 L62,66 Z"/>'),.84],
+ goblin:s=>[SB[s]+'<ellipse cx="50" cy="50" rx="19" ry="20"/>'+silMir('M34,50 L4,38 L33,62 Z')+(s==='f'?'<path d="M48,32 C60,10 80,18 74,36 C68,28 58,28 48,32 Z"/>':''),.86],
+ dwarf:s=>[sBase(s)+SHAIR.m+(s==='f'?silMir('M30,54 C22,70 24,94 29,106 L37,104 C32,90 32,72 36,58 Z'):'<path d="M32,56 C28,86 42,104 50,106 C58,104 72,86 68,56 Z"/>'),.9,1.1],
+ orc:s=>[SB[s]+SHEAD+'<rect x="33" y="52" width="34" height="21" rx="7"/>'+silMir('M33,72 L30,56 L38,68 Z')+silMir('M32,48 L21,38 L33,57 Z')+(s==='f'?SHAIR.f:'<path d="M45,31 L50,12 L55,31 Z"/>'),1.04],
+ giant:s=>[sBase(s)+(s==='f'?SHAIR.m+'<circle cx="50" cy="24" r="8"/>':''),1.1],
+ firbolg:s=>[sFull(s)+silMir('M35,40 C20,40 12,30 10,18 C20,28 30,30 38,34 Z')+silMir('M32,50 L16,54 L32,60 Z'),1.04],
+ faun:s=>[sFull(s)+silMir('M37,36 C18,28 8,46 20,60 C22,50 28,44 37,46 Z')+silMir('M32,52 L16,58 L33,60 Z'),1],
+ infernis:s=>[sFull(s)+silMir('M38,37 C24,37 11,27 13,8 C20,21 31,26 44,30 Z')+silMir('M33,50 L22,40 L34,58 Z'),1],
+ drakona:s=>[SB[s]+'<ellipse cx="50" cy="50" rx="17" ry="23"/>'+silMir('M33,44 L20,36 L24,50 L18,56 L33,60 Z')+(s==='f'?silMir('M40,32 C34,22 30,16 28,8 C36,14 42,22 44,30 Z'):'<path d="M40,31 L43,14 L48,29 Z"/><path d="M47,29 L50,8 L53,29 Z"/><path d="M52,29 L57,14 L60,31 Z"/>'),1.02],
+ katari:s=>[sBase(s)+(s==='f'?SHAIR.f:'')+silMir('M34,40 L28,14 L48,31 Z')+silMir('M33,58 L22,62 L33,66 Z'),1],
+ simiah:s=>[sBase(s)+'<circle cx="29" cy="50" r="9"/><circle cx="71" cy="50" r="9"/>'+(s==='f'?SHAIR.f:'<path d="M42,30 L50,17 L58,30 Z"/>'),1],
+ ribbet:s=>[SB[s]+'<ellipse cx="50" cy="56" rx="28" ry="18"/><circle cx="35" cy="38" r="9"/><circle cx="65" cy="38" r="9"/>'+(s==='f'?'<path d="M50,36 L40,26 L42,40 Z"/><path d="M50,36 L60,26 L58,40 Z"/>':''),.95],
+ galapa:s=>[SB[s]+'<ellipse cx="50" cy="108" rx="47" ry="36"/><ellipse cx="50" cy="52" rx="15" ry="19"/>'+(s==='f'?'<ellipse cx="50" cy="38" rx="30" ry="6"/><path d="M36,38 C36,22 64,22 64,38 Z"/>':''),1],
+ fungril:s=>[sBase(s)+(s==='f'?'<path d="M16,50 C10,6 90,6 84,50 C76,40 66,48 58,40 C52,48 44,40 38,48 C30,40 24,48 16,50 Z"/>':'<path d="M10,46 C10,10 90,10 90,46 C72,38 28,38 10,46 Z"/>'),1],
+ faerie:s=>[sFull(s)+silMir('M32,96 C0,84 -2,36 22,40 C34,50 38,72 36,98 Z')+silMir('M44,32 C40,20 36,14 30,12 L32,10 C40,12 46,20 47,30 Z')+silMir('M33,50 L24,42 L34,58 Z'),.9],
+ clank:s=>[(s==='f'?'<path d="M16,125 L16,98 L34,87 L66,87 L84,98 L84,125 Z"/><rect x="44" y="66" width="12" height="24"/><circle cx="50" cy="50" r="21"/><circle cx="34" cy="28" r="6"/><circle cx="66" cy="28" r="6"/>':'<path d="M8,125 L8,96 L30,86 L70,86 L92,96 L92,125 Z"/><rect x="42" y="66" width="16" height="24"/><rect x="31" y="28" width="38" height="42" rx="6"/><rect x="48.5" y="12" width="3" height="18"/><circle cx="50" cy="11" r="4"/>')+'<rect x="25" y="42" width="8" height="12" rx="2"/><rect x="67" y="42" width="8" height="12" rx="2"/>',1]};
+const SIL_KINDS=Object.keys(SIL);
+function silSvg(kind,sex){const f=SIL[kind]||SIL.human,[g,sy,sx]=f(sex==='f'?'f':'m');return `<svg class="sil" viewBox="0 0 100 125" aria-hidden="true"><g transform="translate(50,125) scale(${sx||sy},${sy}) translate(-50,-125)">${g}</g></svg>`}
+const silLabel=k=>k==='gnome'?L('Gnóm','Gnome'):ANC[k]?P(ANC[k]):k;
+const portraitInner=c=>c.portrait?`<img src="${c.portrait}" alt="">`:silSvg(silKind(c),c.sex);
+function portraitTools(c){const cur0=silKind(c),sx=c.sex==='f'?'f':'m';
+ return `<div class="row" style="margin-top:10px"><span class="pthumb">${portraitInner(c)}</span>
+  <span class="row" style="gap:4px"><button type="button" class="btn sm ${sx==='f'?'fear':''}" data-act="setSex" data-s="f">${L('Női','Female')}</button><button type="button" class="btn sm ${sx==='m'?'fear':''}" data-act="setSex" data-s="m">${L('Férfi','Male')}</button></span>
+  <label class="btn sm">${c.portrait?L('Profilkép cseréje','Change portrait'):L('Saját kép feltöltése','Upload your own picture')}<input type="file" accept="image/*" data-chg="portrait" hidden></label>${c.portrait?`<button class="btn sm warn" data-act="portraitDel">${L('Kép törlése','Remove picture')}</button>`:''}</div>
+ <details style="margin-top:8px" ${ui.silOpen?'open':''}><summary class="small" data-act="silOpen">${L('Sziluett választása','Choose a silhouette')} <span class="muted" style="font-family:var(--body);font-weight:400">– ${L('alapból a faj és a nem szerinti','by default it follows ancestry and sex')}${c.portrait?' · '+L('a feltöltött kép elfedi','hidden by the uploaded picture'):''}</span></summary>
+  <div class="silgrid">${SIL_KINDS.map(k=>['f','m'].map(s=>`<button type="button" class="silpick ${k===cur0&&s===sx?'on':''}" data-act="setSil" data-k="${k}" data-s="${s}" title="${esc(silLabel(k))} – ${s==='f'?L('női','female'):L('férfi','male')}">${silSvg(k,s)}<span>${esc(silLabel(k))}</span></button>`).join('')).join('')}</div>
+  ${c.silKind?`<div class="row" style="margin-top:6px"><button class="btn sm" data-act="setSil" data-k="">${L('Vissza a faj szerintire','Back to the ancestry default')}</button></div>`:''}</details>`}
 function catPicker(key,items,act){const st=ui[key]||(ui[key]={q:'',cat:''}),q=st.q.trim().toLowerCase(),cats=[...new Set(items.map(x=>x.cat))];
  const inQ=x=>!q||(x.name+' '+(x.desc||'')).toLowerCase().includes(q),all=items.map((x,i)=>[x,i]).filter(([x])=>inQ(x)),list=all.filter(([x])=>!st.cat||x.cat===st.cat);
  return `<div class="row" style="margin-top:6px"><input type="search" id="cp_${key}" class="grow" data-ui="${key}.q" data-live value="${esc(st.q)}" placeholder="${L('Keresés név vagy leírás szerint (angolul)…','Search by name or description…')}"></div>
@@ -605,7 +672,7 @@ function renderBar(){const c=cur(),v=ui.view;
  ${v==='char'&&c&&c.creating==null?`<nav class="tabs" role="tablist">${tabsFor(c).map(t=>`<button role="tab" aria-selected="${ui.tab===t[0]}" data-act="tab" data-t="${t[0]}">${P(t[1])}</button>`).join('')}</nav>`:''}`}
 function vHome(){const g=S.game,list=S.chars.filter(c=>(c.game||'dh')===g);if(g==='dnd')dNeed('data');
  const card=c=>{const col=c.game==='dnd'?(D_COL[c.classId]||D_COL.fighter):(CLASSES[c.classId]?CLASSES[c.classId].domains.map(x=>`var(--d-${x})`):['var(--fear)','var(--fear)']);
-  return `<button type="button" class="ccard" data-act="openChar" data-id="${c.id}" style="--c1:${col[0]};--c2:${col[1]}"><span class="cport">${c.portrait?`<img src="${c.portrait}" alt="">`:`<span>${esc((c.name||'?').trim()[0]||'?')}</span>`}</span>
+  return `<button type="button" class="ccard" data-act="openChar" data-id="${c.id}" style="--c1:${col[0]};--c2:${col[1]}"><span class="cport">${portraitInner(c)}</span>
    <span class="cinfo"><b>${esc(c.name||L('Névtelen hős','Unnamed hero'))}</b><span>${esc(charCls(c))} · ${L(c.level+'. szint','level '+c.level)}</span><span class="cmeta">${c.example?L('példakarakter','example character'):c.creating!=null?L('félkész – folytasd az alkotást','unfinished – continue creating'):L('módosítva: ','edited ')+new Date(c.updatedAt||Date.now()).toLocaleDateString(lang==='hu'?'hu-HU':'en-GB')}</span></span></button>`};
  return `<section class="blk home">
  <div class="panel homehead"><p class="eyebrow">${T('Játékválasztó','Choose your game')}</p>
@@ -641,7 +708,7 @@ function vVitals(c,d){
  const anc=c.anc1===c.anc2?N(ANC[c.anc1]):`${P(ANC[c.anc1])} / ${P(ANC[c.anc2])}`;
  const dc=d.cls.domains;
  return `<div class="hero" style="--c1:var(--d-${dc[0]});--c2:var(--d-${dc[1]})">
-  <label class="portrait" title="${L('Profilkép feltöltése','Upload a portrait')}">${c.portrait?`<img src="${c.portrait}" alt="">`:`<span>${esc((c.name||'?').trim()[0]||'?')}</span>`}<input type="file" accept="image/*" data-chg="portrait" hidden></label>
+  <label class="portrait" title="${L('Profilkép feltöltése','Upload a portrait')}">${portraitInner(c)}<input type="file" accept="image/*" data-chg="portrait" hidden></label>
   <div class="grow"><div class="nm">${esc(c.name||L('Névtelen hős','Unnamed hero'))}</div><div class="sub">${N(COMM[c.community])} ${anc} · ${N(d.cls)} · ${N(d.sub)}${c.multiclass?` + ${P(CLASSES[c.multiclass.classId])}`:''}${c.pronouns?' · '+esc(c.pronouns):''}</div>
    <div class="row" style="margin-top:6px;gap:6px">${dc.map(x=>`<span class="tag">${N(DOMAINS[x])}</span>`).join('')}<span class="tag">${T('Fokozat','Tier')} ${d.tier}</span>${c.conds.map(k=>{const x=CONDS.find(q=>q.id===k);return `<span class="tag cond">${x?P(x.n):esc(k)}</span>`}).join('')}</div></div>
   <div class="lvl"><span>${L('SZINT','LEVEL')}</span><b class="num">${c.level}</b></div></div>
@@ -658,10 +725,10 @@ function vVitals(c,d){
  ${c.hp>=d.hpS.v?`<div class="note d" style="margin-bottom:14px"><b>${T('Utolsó Életpont megjelölve – halálmozdulat','Last Hit Point marked – death move')}</b>. ${L('Válassz a Játék fülön.','Choose one on the Play tab.')}</div>`:''}`}
 
 /* ============ editors shared by wizard + sheet ============ */
-function edIdentity(c,d){return `<div class="grid g2">${lab(L('Név','Name'),fText('name',L('A hősöd neve','Your hero\'s name'),'data-re'))}${lab(L('Névmások','Pronouns'),fText('pronouns',''))}
+function edIdentity(c,d){return `<div class="grid g2">${nameField()}${lab(L('Névmások','Pronouns'),fText('pronouns',''))}
  ${lab(T('Osztály','Class'),fSel('classId',optsOf(CLASSES),'data-chg="classChanged"'))}
  ${lab(T('Alosztály','Subclass'),fSel('subId',d.cls.subs.map(s=>[s.id,lang==='hu'?`${s.hu} (${s.en})`:s.en])))}</div>
- <div class="row" style="margin-top:8px">${c.portrait?`<img src="${c.portrait}" alt="" style="width:40px;height:50px;object-fit:cover;border-radius:6px">`:''}<label class="btn sm">${c.portrait?L('Profilkép cseréje','Change portrait'):L('Profilkép feltöltése','Upload a portrait')}<input type="file" accept="image/*" data-chg="portrait" hidden></label>${c.portrait?`<button class="btn sm warn" data-act="portraitDel">${L('Kép törlése','Remove portrait')}</button>`:''}</div>
+ ${portraitTools(c)}
  <p class="small muted" style="margin-top:8px">${T('Tartományok','Domains')}: <b>${d.cls.domains.map(x=>P(DOMAINS[x])).join(' + ')}</b> · ${T('Kezdő Kitérés','Starting Evasion')} <b>${d.cls.eva}</b> · ${T('Kezdő Életpont','Starting HP')} <b>${d.cls.hp}</b>${d.sub.spell?` · ${T('Varázstulajdonság','Spellcast trait')}: <b>${P(TR[d.sub.spell])}</b>`:''}</p>`}
 function edHeritage(c){const mixed=c.anc1!==c.anc2;return `<div class="grid g2">
  ${lab(T('Származás – 1. képesség','Ancestry – first feature'),fSel('anc1',optsOf(ANC),'data-chg="anc1Changed"'))}
@@ -1042,7 +1109,7 @@ const A={
  randChar(){const c=newChar();const ck=pick(Object.keys(CLASSES));c.classId=ck;c.subId=pick(CLASSES[ck].subs).id;c.anc1=c.anc2=pick(Object.keys(ANC));c.community=pick(Object.keys(COMM));
   const arr=[...START_ARRAY].sort(()=>Math.random()-.5);TRAITS.forEach((t,i)=>c.traits[t.id]=arr[i]);const best=TRAITS.slice().sort((a,z)=>c.traits[z.id]-c.traits[a.id])[0].id;
   const t1=WCAT.filter(w=>w.tier===1&&w.slot===1),fit=t1.filter(w=>w.trait===best);c.primary=mkWeapon(pick(fit.length?fit:t1));c.secondary=c.primary&&c.primary.hands===1?mkWeapon(pick(WCAT.filter(w=>w.tier===1&&w.slot===2))):null;c.armor=mkArmor(pick(ACAT.filter(a=>a.tier===1)));
-  c.name=pick(['Aldric','Brisa','Corvin','Dalma','Emese','Fenn','Ilka','Kestrel','Lóránt','Mira','Orsolya','Rókus','Sári','Tamsin','Vidor','Zente']);
+  c.sex=pick(['f','m']);c.name=genName(c.anc1,c.sex);
   const ex=[b('Vándorkomédiás','Travelling player'),b('Csempész','Smuggler'),b('Könyvmoly','Bookworm'),b('Erdőjáró','Woodswalker'),b('Kovácsinas','Smith\'s apprentice'),b('Udvari kém','Court spy'),b('Tengerész','Sailor'),b('Gyógyfüves','Herbalist'),b('Utcagyerek','Street urchin'),b('Volt katona','Former soldier')].sort(()=>Math.random()-.5);
   c.experiences=[{name:P(ex[0]),mod:0},{name:P(ex[1]),mod:0}];
   c.cards=CARDCAT.filter(k=>k.level===1&&CLASSES[ck].domains.includes(k.domain)).sort(()=>Math.random()-.5).slice(0,2).map(k=>mkCard(k,'loadout'));
@@ -1095,6 +1162,10 @@ const A={
  ruleGo(x){const i=RULES.findIndex(r=>slug(r.t)===x.slug);if(i>=0)A.ruleOpen({i,nohl:1})},
  ruleChap(x,el){ui.rule.ch=+el.value;ui.rule.hl=null;render()},
  ruleChapGo(x){ui.rule.ch=+x.i;ui.rule.hl=null;render();const v=$('#ruleView');if(v&&v.scrollIntoView)v.scrollIntoView({block:'start'})},
+ genName(){const c=cur();c.name=genName(silKind(c),c.sex==='f'?'f':'m');touch();render()},
+ setSex(x){cur().sex=x.s;touch();render()},
+ setSil(x){const c=cur();if(x.k){c.silKind=x.k;c.sex=x.s}else delete c.silKind;ui.silOpen=true;touch();render()},
+ silOpen(){ui.silOpen=!ui.silOpen},
  addItem(x){const c=cur();c.items.push({name:x.n||'',qty:1,desc:'',fields:[]});if(x.open)ui.itOpen=c.items.length-1;touch();render()},
  delItem(x){cur().items.splice(+x.i,1);ui.itOpen=null;touch();render()},
  itemToggle(x){ui.itOpen=ui.itOpen===+x.i?null:+x.i;render()},
@@ -1200,7 +1271,7 @@ document.addEventListener('change',e=>{const el=e.target;
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id&&e.target.id.startsWith('ev_')){A.sessEv({i:e.target.id.slice(3)})}});
 
 /* ============ boot ============ */
-function exampleChar(){const c=newChar();Object.assign(c,{example:true,creating:null,name:'Emese Hollószárny',pronouns:L('ő','she/her'),classId:'wizard',subId:'knowledge',anc1:'elf',anc2:'elf',community:'loreborne',level:2,
+function exampleChar(){const c=newChar();Object.assign(c,{example:true,creating:null,sex:'f',name:'Emese Hollószárny',pronouns:L('ő','she/her'),classId:'wizard',subId:'knowledge',anc1:'elf',anc2:'elf',community:'loreborne',level:2,
  traits:{agi:0,str:-1,fin:0,ins:1,pre:1,kno:2},experiences:[{name:L('A Nagy Könyvtár írnoka','Scribe of the Great Library'),mod:0},{name:L('Éjszakai csillagleső','Midnight stargazer'),mod:0},{name:L('Romok kutatója','Delver of ruins'),mod:0}],
  primary:mkWeapon(wFind('Greatstaff')),secondary:null,armor:mkArmor(aFind('Gambeson Armor')),hp:1,stress:2,hope:4,armorMarked:1,
  levelUps:[{level:2,addedExp:true,adv:[{type:'traits',sheet:2,traits:['kno','ins']},{type:'stress',sheet:2}]}],
