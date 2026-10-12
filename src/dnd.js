@@ -179,8 +179,8 @@ function dSpells(c,d){const mine=c.spells.map((x,i)=>({s:DND.spl[x.id],x,i})).fi
 function dGear(c,d){const coin=[['pp','PP'],['gp','GP'],['ep','EP'],['sp','SP'],['cp','CP']];
  return `<section class="blk"><div class="grid g2"><div class="panel"><h2>${T('Páncél és fegyverek','Armor and weapons')}</h2>${dEdGear(c,d)}</div>
  <div class="stack"><div class="panel"><h2>${T('Érmék','Coins')}</h2><div class="row" style="gap:14px">${coin.map(k=>`<span>${k[1]} ${stepper('coins.'+k[0],0,99999)}</span>`).join('')}</div></div>
- <div class="panel"><h2>${T('Táska','Inventory')}</h2><div class="list">${c.items.map((it,i)=>`<div class="li"><span class="grow">${fText('items.'+i+'.name',L('Tárgy','Item'))}</span>${stepper('items.'+i+'.qty',0,999)}<button class="btn sm warn" data-act="delItem" data-i="${i}">×</button>${it.desc?`<div class="small muted" style="flex-basis:100%">${mdi(it.desc)}</div>`:''}</div>`).join('')}</div>
-  <div class="row" style="margin-top:8px"><button class="btn sm" data-act="addItem" data-n="">+ ${L('Tárgy','Item')}</button></div>
+ <div class="panel"><h2>${T('Táska','Inventory')}</h2><div class="list">${c.items.map((it,i)=>itemRow(it,i,999)).join('')||`<p class="muted small">${L('A táska üres.','The pack is empty.')}</p>`}</div>
+  <div class="row" style="margin-top:8px"><button class="btn sm pri" data-act="addItem" data-n="" data-open="1">+ ${L('Egyedi tárgy','Custom item')}</button></div>
   <h3 style="margin-top:14px">${L('Tárgy a szabálykönyv katalógusából','Item from the rulebook catalog')}</h3>${catPicker('dndItems',DND.gear,'dGearAdd')}</div></div></div></section>`}
 
 function dLevel(c,d){const next=d.cls.levels[d.lvl];
@@ -208,7 +208,7 @@ function dSheetMd(c,d){const o=[],Tp=(hu,en)=>lang==='hu'&&hu!==en?`${hu} (${en}
  const sp=c.spells.map(x=>({s:DND.spl[x.id],x})).filter(q=>q.s).sort((p,r)=>p.s.lvl-r.s.lvl);
  if(sp.length){o.push(`## ${Tp('Varázslatok','Spells')}`,'');if(d.spell)o.push(`${Tp('Mentő NF','Save DC')} ${d.spell.dc} · ${Tp('Varázstámadás','Spell attack')} ${sgn(d.spell.atk)} · ${Tp('Varázshelyek','Slots')}: ${d.spell.slots.map((n,i)=>n?`${i+1}: ${n}`:'').filter(Boolean).join(', ')}`,'');
   sp.forEach(q=>o.push(`#### ${q.s.name}`,'',`*${q.s.lvl?q.s.lvl+'. '+L('szint','level'):'cantrip'} · ${q.s.school} · ${q.s.time} · ${q.s.range} · ${q.s.comp} · ${q.s.dur}*`,'',q.s.d,'',q.s.hi||'',''))}
- o.push(`## ${Tp('Felszerelés','Inventory')}`,'',...c.items.map(i=>`- ${i.name}${i.qty!==1?' × '+i.qty:''}`),'',`**${Tp('Érmék','Coins')}:** ${['pp','gp','ep','sp','cp'].map(k=>`${c.coins[k]||0} ${k.toUpperCase()}`).join(', ')}`,'');
+ o.push(`## ${Tp('Felszerelés','Inventory')}`,'',...c.items.map(itemMd),'',`**${Tp('Érmék','Coins')}:** ${['pp','gp','ep','sp','cp'].map(k=>`${c.coins[k]||0} ${k.toUpperCase()}`).join(', ')}`,'');
  if(c.profNotes)o.push(`**${L('Egyéb jártasságok, nyelvek','Other proficiencies, languages')}:** ${c.profNotes}`,'');
  if(c.background)o.push(`## ${L('Háttértörténet','Backstory')}`,'',c.background,'');if(c.connections)o.push(`## ${L('Kapcsolatok','Connections')}`,'',c.connections,'');
  const ns=c.notes.filter(n=>n.title||n.body);if(ns.length){o.push(`## ${L('Jegyzetek','Notes')}`,'');ns.forEach(n=>o.push(`### ${n.title||'—'}`,'',n.body,''))}

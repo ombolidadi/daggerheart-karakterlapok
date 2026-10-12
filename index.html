@@ -218,6 +218,7 @@ blockquote{margin:0;padding:6px 12px;border-left:3px solid var(--fear);backgroun
 .dot.p1{background:var(--ink);border-color:var(--ink)} .dot.p2{background:var(--hope);border-color:var(--hope);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--hope)}
 .sk{flex:1;min-width:0;text-align:left;background:none;border:0;padding:4px 0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .sk:hover{text-decoration:underline}
 .hpbar{height:10px;border-radius:5px;background:var(--line);overflow:hidden;margin-top:6px} .hpbar i{display:block;height:100%;background:var(--ok)}
+.item{border-bottom:1px dashed var(--line);padding:6px 0;min-width:0} .item:last-child{border-bottom:0} .item.open{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:10px}
 .catlist{max-height:420px;overflow:auto;padding-right:4px}
 .origd{margin-top:2px} .origd>summary{font-family:var(--body);font-weight:400;font-size:.85rem;color:var(--muted)} .origd .ctext{color:var(--muted);font-style:italic;font-size:.9rem}
 .dfeat{border-bottom:1px dashed var(--line);padding:5px 0} .dfeat:last-of-type{border-bottom:0} .dfeat>summary{font-size:1rem} details.dfeat[open]>summary{margin-bottom:6px}
@@ -367,7 +368,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='2.3';
+const APP_VERSION='2.4';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -385,6 +386,15 @@ const CAT_EN={potion:'Potions',consumable:'Other consumables',relic:'Relics',gem
 const catLabel=c=>{const en=CAT_EN[c]||c;return lang==='hu'&&CAT_HU[c]?`${CAT_HU[c]} (${en})`:en};
 const DH_ITEMS=[...SRD.consumables.map(x=>({name:x.name,desc:x.desc,cat:/Potion/.test(x.name)?'potion':'consumable'})),
  ...SRD.items.map(x=>({name:x.name,desc:x.desc,cat:/Recipe/.test(x.name)?'recipe':/Relic/.test(x.name)?'relic':/^Gem of/.test(x.name)?'gem':/Ring|Pendant|Amulet|Locket|Charm|Chain|Belt|Cloak|Gloves|Boots/.test(x.name)?'wearable':'gear'}))];
+/** one inventory row: name + quantity, and an editor for description and free-form values (custom or catalog items alike) */
+function itemRow(it,i,maxQty){const open=ui.itOpen===i,f=it.fields||[],p='items.'+i;
+ const sug=[L('Sebzés','Damage'),L('Töltet','Charges'),L('Ár','Price'),L('Hatótáv','Range'),L('Bónusz','Bonus')].filter(k=>!f.some(q=>q.k===k));
+ return `<div class="item ${open?'open':''}"><div class="li"><span class="grow">${fText(p+'.name',L('A tárgy neve','Item name'))}</span>${stepper(p+'.qty',0,maxQty)}<button class="btn sm ${open?'fear':''}" data-act="itemToggle" data-i="${i}" aria-expanded="${open}">${open?L('Kész','Done'):L('Részletek','Details')}</button><button class="btn sm warn" data-act="delItem" data-i="${i}" aria-label="${L('Törlés','Delete')}">×</button></div>
+ ${open?`<div class="stack" style="gap:8px;margin-top:8px">${lab(L('Leírás – mit tud, hogyan néz ki, honnan van','Description – what it does, how it looks, where it came from'),fArea(p+'.desc','',3))}
+  <div><span class="small muted">${L('Egyedi értékek','Custom values')}</span><div class="list" style="margin-top:4px">${f.map((q,j)=>`<div class="li"><span style="flex:1 1 8em;min-width:0">${fText(p+'.fields.'+j+'.k',L('Megnevezés (pl. Sebzés)','Label (e.g. Damage)'))}</span><span style="flex:2 1 10em;min-width:0">${fText(p+'.fields.'+j+'.v',L('Érték (pl. d8+2, 3 töltet, +1 Kitérés)','Value (e.g. d8+2, 3 charges, +1 Evasion)'))}</span><button class="btn sm warn" data-act="itemFieldDel" data-i="${i}" data-j="${j}" aria-label="${L('Érték törlése','Remove value')}">×</button></div>`).join('')}</div>
+  <div class="row" style="margin-top:6px;gap:4px"><button class="btn sm pri" data-act="itemField" data-i="${i}">+ ${L('Érték','Value')}</button>${sug.map(k=>`<button class="btn sm" data-act="itemField" data-i="${i}" data-k="${esc(k)}">+ ${esc(k)}</button>`).join('')}</div></div></div>`
+ :`${f.filter(q=>q.k||q.v).length?`<div class="row" style="gap:4px;margin-top:4px">${f.filter(q=>q.k||q.v).map(q=>`<span class="tag h">${esc(q.k)}${q.k&&q.v?': ':''}<b>${esc(q.v)}</b></span>`).join('')}</div>`:''}${it.desc?`<div class="small muted" style="margin-top:3px">${mdl(it.desc)}</div>`:''}`}</div>`}
+const itemMd=i=>`- ${i.name||'—'}${i.qty!==1?' × '+i.qty:''}${(i.fields||[]).filter(q=>q.k||q.v).map(q=>` · ${q.k}${q.k&&q.v?': ':''}${q.v}`).join('')}${i.desc?' — '+String(i.desc).replace(/\n+/g,' '):''}`;
 function catPicker(key,items,act){const st=ui[key]||(ui[key]={q:'',cat:''}),q=st.q.trim().toLowerCase(),cats=[...new Set(items.map(x=>x.cat))];
  const inQ=x=>!q||(x.name+' '+(x.desc||'')).toLowerCase().includes(q),all=items.map((x,i)=>[x,i]).filter(([x])=>inQ(x)),list=all.filter(([x])=>!st.cat||x.cat===st.cat);
  return `<div class="row" style="margin-top:6px"><input type="search" id="cp_${key}" class="grow" data-ui="${key}.q" data-live value="${esc(st.q)}" placeholder="${L('Keresés név vagy leírás szerint (angolul)…','Search by name or description…')}"></div>
@@ -821,9 +831,9 @@ function vCards(c,d){const lo=c.cards.filter(k=>k.loc==='loadout'),va=c.cards.fi
 function vGear(c,d){return `<section class="blk"><div class="grid g2"><div class="panel"><h2>${T('Felszerelt tárgyak','Equipped')}</h2>${edGear(c,d)}</div>
  <div class="stack"><div class="panel"><h2>${T('Arany','Gold')}</h2><p class="small muted">${L('10 marék = 1 zsák, 10 zsák = 1 láda; az átváltást a lap elvégzi.','10 handfuls = 1 bag, 10 bags = 1 chest; the sheet converts for you.')}</p>
   <div class="row" style="margin-top:8px;gap:18px"><span>${T('Marék','Handfuls')} ${stepper('gold.handfuls',-1,10)}</span><span>${T('Zsák','Bags')} ${stepper('gold.bags',-1,10)}</span><span>${T('Láda','Chests')} ${stepper('gold.chests',0,1)}</span></div></div>
- <div class="panel"><h2>${T('Táska','Inventory')}</h2><div class="list">${c.items.map((it,i)=>`<div class="li"><span class="grow">${fText('items.'+i+'.name',L('Tárgy','Item'))}</span>${stepper('items.'+i+'.qty',0,99)}<button class="btn sm warn" data-act="delItem" data-i="${i}" aria-label="${L('Törlés','Delete')}">×</button>${it.desc?`<div class="small muted" style="flex-basis:100%">${mdi(it.desc)}</div>`:''}</div>`).join('')}</div>
+ <div class="panel"><h2>${T('Táska','Inventory')}</h2><div class="list">${c.items.map((it,i)=>itemRow(it,i,99)).join('')||`<p class="muted small">${L('A táska üres.','The pack is empty.')}</p>`}</div>
   <h3 style="margin-top:14px">${L('Tárgy a szabálykönyv katalógusából','Item from the rulebook catalog')}</h3>${catPicker('dhItems',DH_ITEMS,'addCatItem')}
-  <div class="row" style="margin-top:8px"><button class="btn sm" data-act="addItem" data-n="">+ ${L('Tárgy','Item')}</button><button class="btn sm" data-act="addItem" data-n="${L('Kisebb gyógyital (Minor Health Potion)','Minor Health Potion')}">+ ${L('Gyógyital','Health potion')}</button><button class="btn sm" data-act="addItem" data-n="${L('Kisebb állóképesség-ital (Minor Stamina Potion)','Minor Stamina Potion')}">+ ${L('Állóképesség-ital','Stamina potion')}</button></div>
+  <div class="row" style="margin-top:8px"><button class="btn sm pri" data-act="addItem" data-n="" data-open="1">+ ${L('Egyedi tárgy','Custom item')}</button><button class="btn sm" data-act="addItem" data-n="${L('Kisebb gyógyital (Minor Health Potion)','Minor Health Potion')}">+ ${L('Gyógyital','Health potion')}</button><button class="btn sm" data-act="addItem" data-n="${L('Kisebb állóképesség-ital (Minor Stamina Potion)','Minor Stamina Potion')}">+ ${L('Állóképesség-ital','Stamina potion')}</button></div>
   <p class="small muted" style="margin-top:8px">${T('Kisebb gyógyital','Minor Health Potion')}: ${L('1d4 ÉP törlése','clear 1d4 HP')} · ${T('Kisebb állóképesség-ital','Minor Stamina Potion')}: ${L('1d4 Stressz törlése','clear 1d4 Stress')}</p></div></div></div></section>`}
 
 /* ============ level-up ============ */
@@ -964,7 +974,7 @@ function dhSheetMd(c,d){const o=[];const anc=c.anc1===c.anc2?Np(ANC[c.anc1]):`${
  if(c.cards.length){o.push(`## ${Tp('Tartománykártyák','Domain cards')}`,'');
   for(const loc of ['loadout','vault']){const ks=c.cards.filter(k=>(k.loc==='loadout')===(loc==='loadout'));if(!ks.length)continue;o.push(`### ${loc==='loadout'?Tp('Aktív pakli','Loadout'):Tp('Tároló','Vault')}`,'');
    for(const k of ks){const i=cardInfo(k),h=hx('cards',k.name);o.push(`#### ${h?h[0]+' ('+k.name+')':k.name}`,'',`*${P(DOMAINS[k.domain]||b(k.domain,k.domain))} · ${L('szint','level')} ${k.level}${k.type?' · '+k.type:''} · ${Tp('előhívás','recall')} ${k.recall||0}*`,'');if(i)o.push(h?h[1]:i.text,'');if(k.notes)o.push(k.notes,'')}}}
- o.push(`## ${Tp('Felszerelés','Inventory')}`,'',...c.items.map(i=>`- ${i.name}${i.qty!==1?' × '+i.qty:''}${i.desc?' — '+i.desc:''}`),'',`**${Tp('Arany','Gold')}:** ${c.gold.handfuls} ${Tp('marék','handfuls')}, ${c.gold.bags} ${Tp('zsák','bags')}, ${c.gold.chests} ${Tp('láda','chests')}`,'');
+ o.push(`## ${Tp('Felszerelés','Inventory')}`,'',...c.items.map(itemMd),'',`**${Tp('Arany','Gold')}:** ${c.gold.handfuls} ${Tp('marék','handfuls')}, ${c.gold.bags} ${Tp('zsák','bags')}, ${c.gold.chests} ${Tp('láda','chests')}`,'');
  if(c.counters.length)o.push(`**${L('Számlálók','Counters')}:** `+c.counters.map(k=>`${k.name||'—'}: ${k.val}`).join(', '),'');
  if(c.background)o.push(`## ${L('Háttér','Background')}`,'',c.background,'');
  if(c.connections)o.push(`## ${L('Kapcsolatok','Connections')}`,'',c.connections,'');
@@ -1085,8 +1095,11 @@ const A={
  ruleGo(x){const i=RULES.findIndex(r=>slug(r.t)===x.slug);if(i>=0)A.ruleOpen({i,nohl:1})},
  ruleChap(x,el){ui.rule.ch=+el.value;ui.rule.hl=null;render()},
  ruleChapGo(x){ui.rule.ch=+x.i;ui.rule.hl=null;render();const v=$('#ruleView');if(v&&v.scrollIntoView)v.scrollIntoView({block:'start'})},
- addItem(x){cur().items.push({name:x.n||'',qty:1});touch();render()},
- delItem(x){cur().items.splice(+x.i,1);touch();render()},
+ addItem(x){const c=cur();c.items.push({name:x.n||'',qty:1,desc:'',fields:[]});if(x.open)ui.itOpen=c.items.length-1;touch();render()},
+ delItem(x){cur().items.splice(+x.i,1);ui.itOpen=null;touch();render()},
+ itemToggle(x){ui.itOpen=ui.itOpen===+x.i?null:+x.i;render()},
+ itemField(x){const it=cur().items[+x.i];if(!it.fields)it.fields=[];it.fields.push({k:x.k||'',v:''});touch();render()},
+ itemFieldDel(x){cur().items[+x.i].fields.splice(+x.j,1);touch();render()},
  cardDom(x){ui.cardDom=x.d;render()},
  addCard(x){const c=cur(),k=CARDCAT.find(q=>q.name===x.n&&q.domain===x.d);if(!k)return;c.cards.push(mkCard(k,c.cards.filter(q=>q.loc==='loadout').length<5?'loadout':'vault'));touch();render()},
  addCustomCard(){const c=cur(),d=derive(c);c.cards.push({id:uid6(),name:L('Egyéni kártya','Custom card'),domain:ui.cardDom||d.domains[0],level:1,type:'',recall:0,notes:'',custom:true,loc:'vault'});touch();render()},
