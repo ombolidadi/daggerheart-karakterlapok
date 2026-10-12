@@ -4,7 +4,7 @@ Kétnyelvű (magyar–angol) karakteralkotó és karakterlap-kezelő webapp két
 
 **Kezdőlap:** játékválasztó (Daggerheart / D&D 5e), a karakterek listája, új karakter, szabálykönyv.
 
-**Daggerheart:** lépésenkénti karakteralkotás · automatikusan számolt értékek · Kettősség-dobó · sebzés, pihenő, halálmozdulatok · szintlépés 10. szintig · mind a 189 tartománykártya · a teljes SRD 1.0 keresővel.
+**Daggerheart:** lépésenkénti karakteralkotás · automatikusan számolt értékek · Kettősség-dobó · sebzés, pihenő, halálmozdulatok · szintlépés 10. szintig · mind a 189 tartománykártya és az alosztálykártyák magyarul is (az angol eredetivel) · a teljes SRD 1.0 keresővel.
 
 **D&D 5e (2024-es szabályok, SRD 5.2.1):** 12 osztály (osztályonként egy alosztály), 9 faj, 4 háttér · tulajdonságok, mentők, jártasságok, PO, ÉP, kezdeményezés automatikusan · d20-dobó előnnyel/hátránnyal · 339 varázslat teljes szöveggel, varázshelyek · pihenők, életkockák, halálmentők · szintlépés 20. szintig · a teljes SRD 5.2.1 (szabályok, varázslatok, mágikus tárgyak, szörnyek) keresővel.
 
@@ -31,6 +31,7 @@ Saját fordítás: `bash macos/build-app.sh` (Xcode Command Line Tools kell hozz
 - `src/app.html` – az alkalmazás váza és a Daggerheart-lap (HTML + CSS + JS egy fájlban).
 - `src/dnd.js` – a D&D 5e karakterlap.
 - `src/gm.js` – a kalandmesteri felület (kampányok).
+- `srd-source/hu/` – a tartomány- és alosztálykártyák magyar fordítása (szerkeszthető szövegfájlok).
 - `srd-source/` – a Daggerheart SRD 1.0 és (a `dnd/` almappában) a D&D SRD 5.2.1 adatai.
 - `python3 build.py` – ebből készül az `index.html`, a `dnd.js`, a `data/*.js`, a manifest és az ikonok. Szerkesztés után futtasd újra.
 - Helyi kipróbálás: `python3 -m http.server 8000`, majd `http://localhost:8000`.

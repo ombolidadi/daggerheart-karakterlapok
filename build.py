@@ -26,6 +26,23 @@ data = {
 (R / 'data').mkdir(exist_ok=True)
 (R / 'data' / 'srd-data.js').write_text('window.DH_SRD=' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
 
+# ---- Hungarian translations of the domain cards and subclass cards (srd-source/hu/*.md: "### English name | Magyar név" + text)
+def read_hu(files):
+    out = {}
+    for f in files:
+        for blk in re.split(r'^### ', (R / 'srd-source' / 'hu' / f).read_text(encoding='utf-8'), flags=re.M)[1:]:
+            head, _, body = blk.partition('\n')
+            en, _, hu = head.partition(' | ')
+            out[en.strip()] = [hu.strip(), body.strip()]
+    return out
+if (R / 'srd-source' / 'hu').is_dir():
+    hu_cards = read_hu(['cards-1.md', 'cards-2.md', 'cards-3.md', 'cards-4.md'])
+    hu_sub = read_hu(['subclasses.md'])
+    miss = [c['n'] for c in data['cards'] if c['n'] not in hu_cards] + [f['name'] for s in data['subclasses'].values() for k in ('foundation', 'specialization', 'mastery') for f in s[k] if f['name'] not in hu_sub]
+    extra = [n for n in hu_cards if n not in {c['n'] for c in data['cards']}]
+    print('hu:', len(hu_cards), 'cards,', len(hu_sub), 'subclass features; missing:', miss, 'unknown:', extra)
+    (R / 'data' / 'srd-hu.js').write_text('window.DH_HU=' + json.dumps({'cards': hu_cards, 'sub': hu_sub}, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
+
 # ---- rulebook: split the SRD markdown into sections at headings (levels 1-5)
 md = open(R / 'srd-source' / 'SRD.md', encoding='utf-8-sig').read().replace('\r', '')
 md = md[md.index('## INTRODUCTION'):]
