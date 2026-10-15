@@ -18,6 +18,15 @@ Kétnyelvű (magyar–angol) karakteralkotó és karakterlap-kezelő webapp két
 2. A repóban: **Settings → Pages → Build and deployment → Source: Deploy from a branch**, Branch: `main`, mappa: `/ (root)`, majd **Save**.
 3. Egy-két perc múlva az app elérhető a `https://<felhasználónév>.github.io/<repó-név>/` címen. Telefonon a böngésző menüjéből „Hozzáadás a kezdőképernyőhöz”.
 
+## Windows- és Android-program
+
+A [Releases](https://github.com/ombolidadi/daggerheart-karakterlapok/releases) oldalon a Mac-es zip mellett:
+
+- **Windows:** `Karakterlapok-Windows.zip` – kicsomagolás után a `Karakterlapok` mappában a `Karakterlapok.exe` indítja (a mappát egyben kell tartani). A Windowsba épített Edge WebView2-t használja (Windows 10/11). A karakterek ide mentődnek: `%APPDATA%\Karakterlapok\karakterek.json`. Az első indításnál a SmartScreen figyelmeztethet (nincs aláírva): „További információ” → „Futtatás mindenképp”. A [Neutralinojs](https://neutralino.js.org) (MIT) futtatókörnyezetre épül.
+- **Android:** `Karakterlapok-Android.apk` – telefonon letöltve megnyitható és telepíthető; az első alkalommal engedélyezni kell az „ismeretlen forrásból” való telepítést. Android 7.0 vagy újabb kell. A karakterek az app saját tárhelyén mentődnek (naponta biztonsági másolattal); másik eszközre JSON-exporttal vihetők át.
+
+Saját fordítás: `bash windows/build-win.sh` és `bash android/build-apk.sh` (az utóbbihoz JDK 17 és az Android SDK parancssori eszközei kellenek; az aláírókulcs a `sajat/` mappában keletkezik – őrizd meg, mert a frissítéseket ugyanazzal kell aláírni).
+
 ## macOS-program
 
 A [Releases](https://github.com/ombolidadi/daggerheart-karakterlapok/releases) oldalról letölthető a `Daggerheart-Karakterlapok-macOS.zip`: kicsomagolás után a **Daggerheart Karakterlapok.app** az Alkalmazások mappába húzható. Önálló ablakban fut, internet nélkül is, és a karaktereket magától menti ide: `~/Library/Application Support/Daggerheart Karakterlapok/karakterek.json` (naponta biztonsági másolattal a `backups` mappában).

@@ -376,7 +376,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='2.7';
+const APP_VERSION='2.8';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -576,10 +576,12 @@ const LS='dh-sheets-v1';let db=null,base=null,dirty=new Set(),flushT=null;
 function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LS));if(j&&Array.isArray(j.chars))S=Object.assign(S,j)}catch(e){}if(!Array.isArray(S.camps))S.camps=[]}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}fileSoon();natSoon()}
 /* ---- native macOS app: the Swift shell keeps the save file, shows save/print dialogs ---- */
-const NATIVE=!!(window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.dh);
-const nsx={at:0,err:''};let natT=null;
-const nat=(type,data)=>{try{window.webkit.messageHandlers.dh.postMessage(Object.assign({type},data||{}))}catch(e){}};
-function natSave(){clearTimeout(natT);natT=null;if(NATIVE)nat('save',{json:filePayload()})}
+// native shells: macOS (WebKit message handler), Android (AndroidBridge), Windows (DHBridge, Neutralinojs)
+const NATIVE=!!((window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.dh)||window.AndroidBridge||window.DHBridge);
+if(window.AndroidBridge){try{window.DH_NATIVE_DATA=window.AndroidBridge.load();window.DH_NATIVE_PATH=window.AndroidBridge.path()}catch(e){}}
+const nsx={at:0,err:'',ready:!window.DH_NATIVE_PROMISE};let natT=null;
+const nat=(type,data)=>{const m=Object.assign({type},data||{});try{if(window.AndroidBridge)window.AndroidBridge.post(JSON.stringify(m));else if(window.DHBridge)window.DHBridge.post(m);else window.webkit.messageHandlers.dh.postMessage(m)}catch(e){}};
+function natSave(){clearTimeout(natT);natT=null;if(NATIVE&&nsx.ready)nat('save',{json:filePayload()})}
 function natSoon(){if(!NATIVE)return;clearTimeout(natT);natT=setTimeout(natSave,600)}
 window.dhNativeSaved=(ok,msg)=>{if(ok)nsx.at=Date.now();nsx.err=ok?'':(msg||'error');setSync(ui.sync)};
 window.dhFlushNow=()=>{if(natT)natSave()};
@@ -611,7 +613,7 @@ async function fileLink(h,ask){const prev={h:fsx.h,perm:fsx.perm,name:fsx.name};
  try{await fileRead()}catch(e){Object.assign(fsx,prev);fsx.err='foreign';render();return false}
  try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
  const ok=await fileWrite();render();return ok}
-async function initFile(){if(!FS_OK)return;try{const h=await idb('readonly',st=>st.get('handle'));if(h)await fileLink(h,false)}catch(e){}}
+async function initFile(){if(!FS_OK||NATIVE)return;try{const h=await idb('readonly',st=>st.get('handle'));if(h)await fileLink(h,false)}catch(e){}}
 async function filePick(open){try{const h=open?(await window.showOpenFilePicker({types:FS_TYPES}))[0]:await window.showSaveFilePicker({suggestedName:'daggerheart-karakterek.json',types:FS_TYPES});
   if(await fileLink(h,true))await idb('readwrite',st=>st.put(h,'handle')).catch(()=>{})}catch(e){/* picker closed */}}
 function touch(c){c=c||bindRoot();if(c){c.updatedAt=Date.now();delete c.example;dirty.add(c.id)}saveLocal();if(db){setSync('saving');clearTimeout(flushT);flushT=setTimeout(flush,1500)}}
@@ -1381,7 +1383,8 @@ function boot(){loadLocal();applyTheme();S.chars.forEach(normalize);if(typeof gN
  const h=(location.hash||'').slice(1);if(h&&S.cur&&[...TABS,...D_TABS].some(t=>t[0]===h)){ui.tab=h;ui.view='char'}window.__booted=true;render();initRemote();initFile();if(NATIVE&&!nsx.err&&S.chars.some(c=>!c.example))natSoon();
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&fileT)fileWrite()});
  window.addEventListener('beforeprint',()=>fillPrint());
- if(!IN_ARTIFACT&&'serviceWorker' in navigator&&location.protocol==='https:'){const sw=navigator.serviceWorker,had=!!sw.controller;let done=false;
+ if(window.DH_NATIVE_PROMISE)window.DH_NATIVE_PROMISE.then(t=>{if(t){try{const o=JSON.parse(t);mergeChars(Array.isArray(o)?o:o.chars||[],o.deleted);mergeCamps(o.camps)}catch(e){nsx.err='read'}}nsx.ready=true;saveLocal();render();if(!nsx.err&&S.chars.some(c=>!c.example))natSoon()});
+ if(!IN_ARTIFACT&&!NATIVE&&'serviceWorker' in navigator&&location.protocol==='https:'){const sw=navigator.serviceWorker,had=!!sw.controller;let done=false;
   // when a newer version of the app takes over, reload once so the page is never stale
   sw.addEventListener('controllerchange',()=>{if(had&&!done){done=true;location.reload()}});
   sw.register('sw.js',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{})}}
