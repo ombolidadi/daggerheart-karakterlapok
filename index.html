@@ -226,6 +226,7 @@ blockquote{margin:0;padding:6px 12px;border-left:3px solid var(--fear);backgroun
 .silpick .sil{width:52px;height:65px;fill:var(--bg)} .silpick span{font-size:.72rem;color:var(--bg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .silpick.on{border-color:var(--hope);box-shadow:0 0 0 2px var(--hope)} .silpick:hover{border-color:var(--hope)}
 .item{border-bottom:1px dashed var(--line);padding:6px 0;min-width:0} .item:last-child{border-bottom:0} .item.open{background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:10px}
+.pdfwrap{overflow:auto;max-height:80vh;background:var(--line);border-radius:6px;padding:2px;text-align:center} .pdfwrap canvas{display:block;margin:0 auto;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .catlist{max-height:420px;overflow:auto;padding-right:4px}
 .origd{margin-top:2px} .origd>summary{font-family:var(--body);font-weight:400;font-size:.85rem;color:var(--muted)} .origd .ctext{color:var(--muted);font-style:italic;font-size:.9rem}
 .dfeat{border-bottom:1px dashed var(--line);padding:5px 0} .dfeat:last-of-type{border-bottom:0} .dfeat>summary{font-size:1rem} details.dfeat[open]>summary{margin-bottom:6px}
@@ -375,7 +376,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='2.6';
+const APP_VERSION='2.7';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -699,6 +700,7 @@ function render(){const ae=document.activeElement,aid=ae&&ae.id,pos=ae&&ae.selec
   if(c.creating!=null)h+=vWizard(c,d);else h+=vVitals(c,d)+({sheet:vSheet,play:vPlay,cards:vCards,gear:vGear,level:vLevel,journal:vJournal,notes:vNotes,rules:vRules}[ui.tab])(c,d)}
  $('#main').innerHTML=h;
  if(ui.rule.hl&&(v==='rules'||ui.tab==='rules'))hlite($('#ruleView'),ui.rule.hl);
+ if(document.getElementById&&document.getElementById('pdfCanvas'))pdfDraw();
  if(aid){const el=document.getElementById(aid);if(el&&el!==document.activeElement){el.focus();try{if(pos!=null)el.setSelectionRange(pos,pos)}catch(e){}}}}
 
 /* ============ vitals ============ */
@@ -981,7 +983,7 @@ const books={list:null,cache:{},busy:false};
 const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 async function pdfLib(){if(!window.pdfjsLib)await loadScript(PDFJS+'pdf.min.js');window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';return window.pdfjsLib}
 async function booksLoad(){if(books.list||books.loading)return;books.loading=true;try{books.list=(await idb('readonly',st=>st.get('books')))||[]}catch(e){books.list=[]}render()}
-async function bookOpen(id){if(books.cache[id]||books.opening===id)return;books.opening=id;try{const b=await idb('readonly',st=>st.get('book:'+id));books.cache[id]=b&&b.rules||[]}catch(e){books.cache[id]=[]}books.opening=null;render()}
+async function bookOpen(id){if(books.cache[id]||books.opening===id)return;books.opening=id;try{const b=await idb('readonly',st=>st.get('book:'+id));books.cache[id]=b&&b.pdf?{pdf:true,blob:b.pdf,texts:b.texts||[],marks:b.marks||[]}:b&&b.rules||[]}catch(e){books.cache[id]=[]}books.opening=null;render()}
 const bookMeta=id=>(books.list||[]).find(x=>x.id===id);
 const bookId=()=>{const b=ui.book;return b&&(b==='dh'||b==='dnd'||bookMeta(b))?b:ruleGame()};
 const bookMsg=t=>{const el=document.getElementById('bookMsg');if(el)el.textContent=t};
@@ -994,16 +996,25 @@ function textSections(t,title){const paras=t.replace(/\r/g,'').split(/\n\s*\n/).
  for(const p of paras){buf.push(p);len+=p.length;if(len>3500)flush()}flush();return secs.length?secs:[{l:2,t:title,m:t}]}
 function htmlToMd(t){const doc=new DOMParser().parseFromString(t,'text/html');doc.querySelectorAll('script,style,nav,header,footer').forEach(e=>e.remove());let out='';
  const walk=n=>{for(const e of n.children){const tag=e.tagName;if(/^H[1-4]$/.test(tag))out+=`\n${'#'.repeat(+tag[1])} ${e.textContent.trim()}\n\n`;else if(tag==='LI')out+=`- ${e.textContent.trim()}\n`;else if(/^(P|PRE|BLOCKQUOTE|TD|TH|DT|DD)$/.test(tag))out+=e.textContent.trim()+'\n\n';else walk(e)}};walk(doc.body);return out}
-async function pdfSections(f,title){const lib=await pdfLib(),pdf=await lib.getDocument({data:await f.arrayBuffer()}).promise,n=pdf.numPages,pages=[];
+async function pdfRead(f){const lib=await pdfLib(),pdf=await lib.getDocument({data:await f.arrayBuffer()}).promise,n=pdf.numPages,pages=[];
  for(let p=1;p<=n;p++){const tc=await(await pdf.getPage(p)).getTextContent();pages.push(tc.items.map(i=>i.str+(i.hasEOL?'\n':' ')).join('').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim());if(p%5===0||p===n)bookMsg(L(`PDF olvasása: ${p}/${n}. oldal…`,`Reading PDF: page ${p}/${n}…`))}
  let marks=[];const addMarks=async(items,l)=>{for(const it of items||[]){try{const dest=typeof it.dest==='string'?await pdf.getDestination(it.dest):it.dest;if(dest&&dest[0])marks.push({t:it.title,p:await pdf.getPageIndex(dest[0]),l})}catch(e){}if(l<3)await addMarks(it.items,l+1)}};
- try{await addMarks(await pdf.getOutline(),2)}catch(e){}
+ try{await addMarks(await pdf.getOutline(),2)}catch(e){}marks.sort((a,b2)=>a.p-b2.p||a.l-b2.l);return {n,pages,marks}}
+async function pdfSections(f,title){let {n,pages,marks}=await pdfRead(f);
  if(!marks.length)for(let p=0;p<n;p+=20)marks.push({t:L(`${p+1}–${Math.min(n,p+20)}. oldal`,`Pages ${p+1}–${Math.min(n,p+20)}`),p,l:2});
- marks.sort((a,b2)=>a.p-b2.p||a.l-b2.l);const secs=[];if(marks[0].p>0||marks[0].l>2)secs.push({l:2,t:title,m:''});
+ const secs=[];if(marks[0].p>0||marks[0].l>2)secs.push({l:2,t:title,m:''});
  pages.forEach((txt,i)=>{marks.filter(m=>m.p===i).forEach(m=>secs.push({l:m.l,t:m.t,m:''}));if(txt)secs.push({l:3,t:`${i+1}. ${L('oldal','page')} – ${txt.split('\n')[0].slice(0,50)}`,m:txt.replace(/^([#>|])/gm,'\\$1')})});return secs}
-async function bookUpload(files){if(books.busy)return;books.busy=true;await booksLoad();let last=null;
- for(const f of files){const ext=(f.name.split('.').pop()||'').toLowerCase(),title=f.name.replace(/\.[^.]+$/,'');bookMsg(L(`Feldolgozás: ${f.name}…`,`Processing ${f.name}…`));
-  try{let secs;if(ext==='pdf')secs=await pdfSections(f,title);else{const t=await f.text();secs=ext==='html'||ext==='htm'?mdSections(htmlToMd(t),title):/^#{1,4} /m.test(t)?mdSections(t,title):textSections(t,title)}
+// PDFs ask first: split into chapters, or keep the original pages in a reader
+let pdfPending=null;
+async function bookUpload(files,pdfMode){if(books.busy)return;await booksLoad();
+ if(!pdfMode){const pdfs=files.filter(f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf');if(pdfs.length){pdfPending=pdfs;files=files.filter(f=>!pdfs.includes(f));render();if(!files.length)return}}
+ books.busy=true;let last=null;
+ for(const f of files){if(pdfMode==='pdf'){bookMsg(L(`Feldolgozás: ${f.name}…`,`Processing ${f.name}…`));try{const {n,pages,marks}=await pdfRead(f);if(!pages.some(Boolean))bookMsg(L('Figyelem: ebben a PDF-ben nincs kereshető szöveg (beszkennelt?), de olvasni lehet.','Note: this PDF has no searchable text (scanned?), but it can be read.'));
+   const id='u:'+uid6(),meta={id,name:f.name.replace(/\.[^.]+$/,''),kind:'pdf',secs:n,chars:pages.reduce((q,x)=>q+x.length,0),added:Date.now()};
+   await idb('readwrite',st=>st.put({id,pdf:f,texts:pages,marks},'book:'+id));books.list.push(meta);await idb('readwrite',st=>st.put(books.list,'books'));books.cache[id]={pdf:true,blob:f,texts:pages,marks};last=id}
+  catch(e){books.busy=false;bookMsg(L(`A(z) ${f.name} megnyitása nem sikerült. Az első alkalommal internetkapcsolat kell hozzá.`,`Could not open ${f.name}. An internet connection is needed the first time.`));return}continue}
+  const ext=(f.name.split('.').pop()||'').toLowerCase(),title=f.name.replace(/\.[^.]+$/,'');bookMsg(L(`Feldolgozás: ${f.name}…`,`Processing ${f.name}…`));
+  try{let secs;if(ext==='pdf'||f.type==='application/pdf')secs=await pdfSections(f,title);else{const t=await f.text();secs=ext==='html'||ext==='htm'?mdSections(htmlToMd(t),title):/^#{1,4} /m.test(t)?mdSections(t,title):textSections(t,title)}
    if(!secs.length||!secs.some(x=>x.m))throw new Error('empty');const id='u:'+uid6(),meta={id,name:title,secs:secs.length,chars:secs.reduce((q,x)=>q+x.m.length,0),added:Date.now()};
    await idb('readwrite',st=>st.put({id,rules:secs},'book:'+id));books.list.push(meta);await idb('readwrite',st=>st.put(books.list,'books'));books.cache[id]=secs;last=id}
   catch(e){books.busy=false;bookMsg(e&&e.message==='empty'?L(`A(z) ${f.name} fájlban nem találtam szöveget (beszkennelt PDF-ből nem lehet szöveget kinyerni).`,`No text found in ${f.name} (scanned PDFs have no extractable text).`):L(`A(z) ${f.name} feldolgozása nem sikerült. PDF-hez internetkapcsolat kell az első alkalommal.`,`Could not process ${f.name}. PDFs need an internet connection the first time.`));return}}
@@ -1025,15 +1036,46 @@ function ruleChapter(ci){let end=RULES.length;for(const j of RCH)if(j>ci){end=j;
  for(let i=ci;i<end;i++){const x=RULES[i];h+=`<section id="rs_${i}"><h${x.l} class="mh">${esc(x.t)}</h${x.l}>${md(x.m)}</section>`}return h}
 function hlite(root,toks){if(!root||!toks||!toks.length||!document.createTreeWalker)return;const re=new RegExp('('+toks.map(reEsc).join('|')+')','gi');const tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const ns=[];while(tw.nextNode())ns.push(tw.currentNode);
  for(const n of ns){re.lastIndex=0;if(!re.test(n.nodeValue))continue;const sp=document.createElement('span');sp.innerHTML=esc(n.nodeValue).replace(re,'<mark>$1</mark>');n.replaceWith(...sp.childNodes)}}
+/* ---- PDF reader: original pages on a canvas, page-text search with highlighted hits ---- */
+const pdfDocs={};
+function vPdfBook(g){const bk=books.cache[g],m=bookMeta(g)||{},st=ui.pdf&&ui.pdf.id===g?ui.pdf:(ui.pdf={id:g,page:1,zoom:1,q:'',hl:null}),n=bk.texts.length;st.page=clamp(st.page,1,n);
+ const toks=qToks(st.q),hits=toks.length?bk.texts.map((t,i)=>[t.toLowerCase(),i]).filter(([t])=>toks.every(q=>t.includes(q))):[];const re=toks.length?new RegExp('('+toks.map(reEsc).join('|')+')','gi'):null;
+ const chap=bk.marks.filter(x=>x.l===2);let curChap=-1;chap.forEach((c,i)=>{if(c.p<st.page)curChap=i});
+ return `<section class="blk">${bookBar(g)}<div class="panel"><h2>${esc(m.name||'PDF')}</h2>
+  <div class="row" style="margin-top:6px"><input type="search" id="pdfQ" class="grow" style="min-width:180px" data-ui="pdf.q" data-live value="${esc(st.q)}" placeholder="${L('Keresés a PDF-ben…','Search the PDF…')}">${chap.length?`<select id="pdfCh" data-chg="pdfChap" style="width:auto;max-width:100%" aria-label="${L('Fejezet','Chapter')}"><option value="">${L('— fejezet —','— chapter —')}</option>${chap.map((c,i)=>`<option value="${c.p+1}" ${i===curChap?'selected':''}>${esc(c.t)} (${c.p+1}.)</option>`).join('')}</select>`:''}</div>
+  ${toks.length?`<p class="small muted" style="margin:8px 0 4px">${hits.length} ${L('oldalon van találat','pages match')}</p><div class="reslist">${hits.slice(0,80).map(([t,i])=>{const raw=bk.texts[i].replace(/\s+/g,' '),p0=Math.max(0,raw.toLowerCase().indexOf(toks[0])-60);return `<a class="res" href="#" data-act="pdfGo" data-p="${i+1}"><b>${i+1}. ${L('oldal','page')}</b><br><span class="small">${p0?'…':''}${esc(raw.slice(p0,p0+180)).replace(re,'<mark>$1</mark>')}…</span></a>`}).join('')||`<p class="small muted" style="padding:8px">${L('Nincs találat.','No match.')}</p>`}</div>`:''}</div>
+ <div class="panel pdfview"><div class="row pdfbar"><button class="btn sm" data-act="pdfGo" data-p="${st.page-1}" ${st.page<=1?'disabled':''}>← ${L('Előző','Previous')}</button>
+  <span class="row" style="gap:4px"><input type="number" id="pdfPage" value="${st.page}" min="1" max="${n}" data-chg="pdfPage" style="width:4.6em"><span class="muted num">/ ${n}</span></span>
+  <button class="btn sm" data-act="pdfGo" data-p="${st.page+1}" ${st.page>=n?'disabled':''}>${L('Következő','Next')} →</button><span class="grow"></span>
+  <button class="btn sm" data-act="pdfZoom" data-d="-1" aria-label="${L('Kicsinyítés','Zoom out')}">−</button><span class="small num">${Math.round(st.zoom*100)}%</span><button class="btn sm" data-act="pdfZoom" data-d="1" aria-label="${L('Nagyítás','Zoom in')}">+</button><button class="btn sm" data-act="pdfZoom" data-d="0">${L('Szélességhez','Fit width')}</button></div>
+  <div id="pdfWrap" class="pdfwrap"><canvas id="pdfCanvas"></canvas><p class="muted small" id="pdfStatus">${L('Oldal betöltése…','Loading page…')}</p></div>
+  <div class="row pdfbar" style="margin-top:8px"><button class="btn sm" data-act="pdfGo" data-p="${st.page-1}" ${st.page<=1?'disabled':''}>← ${L('Előző','Previous')}</button><span class="grow"></span><span class="small muted num">${st.page}. ${L('oldal','page')}</span><span class="grow"></span><button class="btn sm" data-act="pdfGo" data-p="${st.page+1}" ${st.page>=n?'disabled':''}>${L('Következő','Next')} →</button></div></div>
+ <p class="small muted">${L('Saját feltöltés, eredeti PDF-ként – csak ezen az eszközön tárolódik.','Your own upload, kept as the original PDF – stored on this device only.')}</p></section>`}
+let pdfDrawSeq=0;
+async function pdfDraw(){const cv=document.getElementById('pdfCanvas'),wrap=document.getElementById('pdfWrap');if(!cv||!ui.pdf)return;const seq=++pdfDrawSeq,st=ui.pdf,bk=books.cache[st.id];if(!bk||!bk.pdf)return;
+ try{const lib=await pdfLib();if(!pdfDocs[st.id])pdfDocs[st.id]=await lib.getDocument({data:await bk.blob.arrayBuffer()}).promise;const doc=pdfDocs[st.id],page=await doc.getPage(st.page);if(seq!==pdfDrawSeq)return;
+  const base=page.getViewport({scale:1}),w=Math.max(200,(wrap.clientWidth||800)-4),scale=w/base.width*st.zoom,vp=page.getViewport({scale}),dpr=window.devicePixelRatio||1;
+  cv.width=Math.floor(vp.width*dpr);cv.height=Math.floor(vp.height*dpr);cv.style.width=Math.floor(vp.width)+'px';cv.style.height=Math.floor(vp.height)+'px';
+  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);await page.render({canvasContext:ctx,viewport:vp}).promise;if(seq!==pdfDrawSeq)return;
+  const toks=qToks(st.q);if(toks.length){const tc=await page.getTextContent();ctx.fillStyle='rgba(230,185,78,.38)';
+   for(const it of tc.items){const low=it.str.toLowerCase();if(!toks.some(t=>low.includes(t)))continue;const tx=lib.Util.transform(vp.transform,it.transform),h=Math.hypot(tx[2],tx[3]);ctx.fillRect(tx[4],tx[5]-h,it.width*scale,h*1.2)}}
+  const s0=document.getElementById('pdfStatus');if(s0)s0.remove()}
+ catch(e){const s0=document.getElementById('pdfStatus');if(s0)s0.textContent=L('Az oldal megjelenítése nem sikerült (a PDF-olvasóhoz internetkapcsolat kell az első alkalommal).','Could not show the page (the PDF reader needs an internet connection the first time).')}}
+function pdfAskPanel(){if(!pdfPending)return '';return `<div class="note" style="margin-top:8px"><b>${L('PDF feltöltése','Uploading a PDF')}: ${pdfPending.map(f=>esc(f.name)).join(', ')}</b>
+ <p class="small" style="margin-top:4px">${L('Hogyan szeretnéd használni?','How would you like to use it?')}</p>
+ <div class="row" style="margin-top:6px"><button class="btn pri" data-act="pdfChoice" data-m="pdf">${L('Eredeti PDF-ként','As the original PDF')}</button><span class="small muted grow" style="flex-basis:220px">${L('Olvasóként működik: az eredeti oldalakat látod képekkel, táblázatokkal, és kereshetsz benne.','Works as a reader: you see the original pages with images and tables, and can search it.')}</span></div>
+ <div class="row" style="margin-top:6px"><button class="btn" data-act="pdfChoice" data-m="split">${L('Tördelve, fejezetekre bontva','Split into chapters')}</button><span class="small muted grow" style="flex-basis:220px">${L('A szöveget kinyeri és fejezetekre bontja, mint a beépített könyveket; a tördelés és a képek elvesznek.','Extracts the text and splits it into chapters like the built-in books; layout and images are lost.')}</span></div>
+ <div class="row" style="margin-top:6px"><button class="btn sm" data-act="pdfChoice" data-m="">${L('Mégse','Cancel')}</button></div></div>`}
 function bookBar(g){const ub=books.list||[],mg=ui.bookMgr;
  return `<div class="panel bookbar"><div class="row"><label class="chk" style="flex:1 1 260px;min-width:0">${L('Szabálykönyv','Rulebook')} <select id="bookSel" data-chg="bookPick" style="flex:1;min-width:0">
   <option value="dh" ${g==='dh'?'selected':''}>Daggerheart SRD 1.0</option><option value="dnd" ${g==='dnd'?'selected':''}>D&amp;D 5e SRD 5.2.1</option>
   ${ub.length?`<optgroup label="${L('Saját feltöltések','My uploads')}">${ub.map(b2=>`<option value="${b2.id}" ${g===b2.id?'selected':''}>${esc(b2.name)}</option>`).join('')}</optgroup>`:''}</select></label>
   <label class="btn sm pri">+ ${L('Szabálykönyv feltöltése','Upload a rulebook')}<input type="file" id="bookFile" accept=".pdf,.md,.markdown,.txt,.html,.htm" multiple hidden></label>${ub.length?`<button class="btn sm ${mg?'fear':''}" data-act="bookMgr">${L('Feltöltések kezelése','Manage uploads')}</button>`:''}</div>
-  <p class="small muted" id="bookMsg" style="margin-top:6px">${L('PDF, Markdown, HTML vagy szöveges fájl tölthető fel; a lap fejezetekre bontja és kereshetővé teszi. A feltöltött könyvek csak ezen az eszközön, ebben a böngészőben tárolódnak, sehová nem kerülnek fel.','Upload a PDF, Markdown, HTML or text file; it is split into chapters and made searchable. Uploaded books stay on this device, in this browser, and are not sent anywhere.')}</p>
-  ${mg&&ub.length?`<div class="list" style="margin-top:8px">${ub.map((b2,i)=>`<div class="li"><input type="text" id="bk_${i}" class="grow" value="${esc(b2.name)}" data-chg="bookRename" data-id="${b2.id}" aria-label="${L('Név','Name')}"><span class="small muted num">${b2.secs} ${L('rész','sections')} · ${Math.round(b2.chars/1000)}k ${L('karakter','chars')}</span><button class="btn sm warn" data-act="bookDel" data-id="${b2.id}">${ui.confirm==='bk'+b2.id?L('Biztos?','Sure?'):L('Törlés','Delete')}</button></div>`).join('')}</div>`:''}</div>`}
+  ${pdfAskPanel()}<p class="small muted" id="bookMsg" style="margin-top:6px">${L('PDF, Markdown, HTML vagy szöveges fájl tölthető fel; a lap fejezetekre bontja és kereshetővé teszi. A feltöltött könyvek csak ezen az eszközön, ebben a böngészőben tárolódnak, sehová nem kerülnek fel.','Upload a PDF, Markdown, HTML or text file; it is split into chapters and made searchable. Uploaded books stay on this device, in this browser, and are not sent anywhere.')}</p>
+  ${mg&&ub.length?`<div class="list" style="margin-top:8px">${ub.map((b2,i)=>`<div class="li"><input type="text" id="bk_${i}" class="grow" value="${esc(b2.name)}" data-chg="bookRename" data-id="${b2.id}" aria-label="${L('Név','Name')}"><span class="tag">${b2.kind==='pdf'?'PDF':L('tördelt','split')}</span><span class="small muted num">${b2.secs} ${b2.kind==='pdf'?L('oldal','pages'):L('rész','sections')}</span><button class="btn sm warn" data-act="bookDel" data-id="${b2.id}">${ui.confirm==='bk'+b2.id?L('Biztos?','Sure?'):L('Törlés','Delete')}</button></div>`).join('')}</div>`:''}</div>`}
 function vRules(){booksLoad();const g=bookId(),own=g.startsWith('u:');if(g==='dnd'&&!dNeed('rules'))return bookBar(g)+dLoading('rules');
  if(own&&!books.cache[g]){bookOpen(g);return `<section class="blk">${bookBar(g)}<div class="panel"><p class="muted">${L('Szabálykönyv betöltése…','Loading the rulebook…')}</p></div></section>`}
+ if(own&&books.cache[g].pdf)return vPdfBook(g);
  const R=(hu,en,body)=>`<div class="panel"><h3>${T(hu,en)}</h3>${body.map(x=>TX(b(x[0],x[1]))).join('<hr>')}</div>`;const ok=useRules(g),r=ui.rule;
  if(!ok)return `<section class="blk"><p class="note d">${L('A szabálykönyv adatfájlja (data/srd-rules.js) nem töltődött be.','The rulebook data file (data/srd-rules.js) did not load.')}</p></section>`;
  const ci=RCH.indexOf(r.ch),prev=RCH[ci-1],next=RCH[ci+1];
@@ -1144,9 +1186,14 @@ const A={
  game(x){S.game=x.g;saveLocal();render()},
  openChar(x){S.cur=x.id;ui.view='char';ui.tab='sheet';ui.lvl=null;ui.rest=null;ui.last=null;ui.dmg=null;ui.dlast=null;saveLocal();render();window.scrollTo(0,0)},
  bookPick(x,el){ui.book=el.value;render()},
+ pdfChoice(x){const f=pdfPending;pdfPending=null;if(!x.m||!f){render();return}render();bookUpload(f,x.m)},
+ pdfGo(x){const st=ui.pdf;if(!st)return;st.page=+x.p;render();const v=document.querySelector('.pdfview');if(v&&v.scrollIntoView)v.scrollIntoView({block:'start'})},
+ pdfPage(x,el){A.pdfGo({p:el.value})},
+ pdfChap(x,el){if(el.value)A.pdfGo({p:el.value})},
+ pdfZoom(x){const st=ui.pdf;st.zoom=+x.d===0?1:clamp(Math.round((st.zoom+(+x.d)*0.25)*100)/100,0.5,3);render()},
  bookMgr(){ui.bookMgr=!ui.bookMgr;render()},
  async bookRename(x,el){const m=bookMeta(x.id);if(!m||!el.value.trim())return;m.name=el.value.trim();await idb('readwrite',st=>st.put(books.list,'books')).catch(()=>{});render()},
- async bookDel(x){const k='bk'+x.id;if(ui.confirm!==k){ui.confirm=k;return render()}ui.confirm=null;books.list=books.list.filter(q=>q.id!==x.id);delete books.cache[x.id];delete RSET[x.id];if(ui.book===x.id)ui.book=null;
+ async bookDel(x){const k='bk'+x.id;if(ui.confirm!==k){ui.confirm=k;return render()}ui.confirm=null;books.list=books.list.filter(q=>q.id!==x.id);delete books.cache[x.id];delete pdfDocs[x.id];delete RSET[x.id];if(ui.book===x.id)ui.book=null;
   await idb('readwrite',st=>st.delete('book:'+x.id)).catch(()=>{});await idb('readwrite',st=>st.put(books.list,'books')).catch(()=>{});render()},
  openRules(){ui.view='rules';ui.book=null;ui.imp=false;render();window.scrollTo(0,0)},
  selChar(x,el){S.cur=el.value;ui.dlast=null;ui.lvl=null;ui.rest=null;ui.last=null;ui.dmg=null;saveLocal();render()},
