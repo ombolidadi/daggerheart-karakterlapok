@@ -217,7 +217,7 @@ Object.assign(A,{
  gSpotClear(){const k=curCamp();gEncSel(k).combatants.forEach(c=>c.spot=false);touch(k);render()},
  gEncReset(){if(ui.confirm!=='gres'){ui.confirm='gres';return render()}ui.confirm=null;const k=curCamp(),e=gEncSel(k);e.round=1;e.turn=0;e.combatants.forEach(c=>{c.spot=false;c.init=null;if(!c.pc){c.hp=k.game==='dnd'?c.hpMax:0;if(c.stressMax!=null)c.stress=0}});touch(k);render()},
  gPriceAdd(x){const k=curCamp();k.prices.push({id:uid6(),name:x.n,price:x.p,note:''});touch(k);render()},
- gRuleSearch(x){const k=curCamp(),q=(G().rq||'').trim();S.game=k.game;ui.view='rules';if(k.game==='dnd'&&!dNeed('rules')){ui.pendingRuleQ=x.open?'':q;return render()}useRules(k.game);ui.rule.q=x.open?'':q;render();window.scrollTo(0,0)},
+ gRuleSearch(x){const k=curCamp(),q=(G().rq||'').trim();S.game=k.game;ui.view='rules';ui.book=k.game;if(k.game==='dnd'&&!dNeed('rules')){ui.pendingRuleQ=x.open?'':q;return render()}useRules(k.game);ui.rule.q=x.open?'':q;render();window.scrollTo(0,0)},
  gLogAdd(){const k=curCamp(),el=document.getElementById('g_logline');if(!el||!el.value.trim())return;gLogLine(k,el.value.trim());touch(k);render()},
  gExport(){const k=curCamp();saveFile(fileBase({name:k.name||'kampany'})+'-kampany.json',JSON.stringify(k,null,1),'application/json')}
 });

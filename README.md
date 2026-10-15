@@ -10,7 +10,7 @@ Kétnyelvű (magyar–angol) karakteralkotó és karakterlap-kezelő webapp két
 
 **Kalandmester:** kampányalkotó lépésről lépésre (rendszer → alapötlet → első helyszín → szereplők → események → első csata) · történettábla · helyszínek és jelenlévők · szereplők · bestiárium a könyvek ellenfeleivel (129 Daggerheart-ellenfél és 19 környezet, 341 D&D-szörny) · csatakövető nehézségbecsléssel · házi szabályok, infók, árlista · napló és keresés.
 
-**Közös:** nappali/éjszakai téma · névgenerátor · faj szerinti sziluett-profilképek (női/férfi) vagy saját kép · session-napló és jegyzetek · exportálás (nyomtatás/PDF, HTML, Markdown, JSON) és visszatöltés · automatikus mentés fájlba · telepíthető, offline is működik (PWA) · natív macOS-program.
+**Közös:** saját szabálykönyvek feltöltése (PDF, Markdown, HTML, szöveg) és keresés bennük – csak az adott eszközön tárolva · nappali/éjszakai téma · névgenerátor · faj szerinti sziluett-profilképek (női/férfi) vagy saját kép · session-napló és jegyzetek · exportálás (nyomtatás/PDF, HTML, Markdown, JSON) és visszatöltés · automatikus mentés fájlba · telepíthető, offline is működik (PWA) · natív macOS-program.
 
 ## Közzététel GitHub Pages-en
 

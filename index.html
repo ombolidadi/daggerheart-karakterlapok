@@ -375,7 +375,7 @@ const COMM={
 const SRD=window.DH_SRD||{cards:[],weapons:[],armor:[],subclasses:{},classes:{},ancestries:{},communities:{},beastforms:[],items:[],consumables:[],domains:{}};
 let RULES=[],RCH=[],RGAME='';const RSET={};
 const IN_ARTIFACT=!!(window.claude&&window.claude.use);
-const APP_VERSION='2.5';
+const APP_VERSION='2.6';
 const TKEY={Agility:'agi',Strength:'str',Finesse:'fin',Instinct:'ins',Presence:'pre',Knowledge:'kno'};
 const RKEY={'Melee':'melee','Very Close':'vclose','Close':'close','Far':'far','Very Far':'vfar'};
 const WCAT=SRD.weapons.map(w=>{const m=/d(\d+)(?:\+(\d+))?\s+(.*)/.exec(w.damage)||[];return {name:w.name,tier:+w.tier,slot:w.ps==='Secondary'?2:1,trait:TKEY[w.trait],range:RKEY[w.range],die:+m[1]||6,bonus:+m[2]||0,dtype:/ or /.test(m[3]||'')?'both':/mag/.test(m[3]||'')?'mag':'phy',hands:w.burden==='Two-Handed'?2:1,featName:w.f?w.f.name:'',featText:w.f?w.f.text:''}});
@@ -667,7 +667,7 @@ function renderBar(){const c=cur(),v=ui.view;
   <button class="btn sm" data-act="lang">${lang==='hu'?'English':'Magyar'}</button></div>
  ${v==='home'?'':`<div class="row" style="margin-top:8px"><button class="btn sm" data-act="home">← ${L('Kezdőlap','Home')}</button>
   ${v==='char'&&c?`<select id="charSel" data-chg="selChar" aria-label="${L('Karakter','Character')}">${S.chars.filter(x=>(x.game||'dh')===(c.game||'dh')).map(x=>`<option value="${x.id}" ${x.id===c.id?'selected':''}>${esc(x.name||L('Névtelen','Unnamed'))} · ${esc(charCls(x))} ${x.level}</option>`).join('')}</select><span class="tag">${gameName(c.game||'dh')}</span>
-  <button class="btn sm" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button>`:v==='camp'?`<b style="font-family:var(--display);font-size:1.15rem">${esc(curCamp().name||L('Névtelen kampány','Unnamed campaign'))}</b><span class="tag">${L('Kalandmester','Game master')} · ${gameName(curCamp().game)}</span>`:`<b style="font-family:var(--display);font-size:1.15rem">${L('Szabálykönyv','Rulebook')} · ${gameName(S.game)}</b>`}</div>`}
+  <button class="btn sm" data-act="toggleImp">${L('Exportálás / betöltés','Export / import')}</button>`:v==='camp'?`<b style="font-family:var(--display);font-size:1.15rem">${esc(curCamp().name||L('Névtelen kampány','Unnamed campaign'))}</b><span class="tag">${L('Kalandmester','Game master')} · ${gameName(curCamp().game)}</span>`:`<b style="font-family:var(--display);font-size:1.15rem">${L('Szabálykönyv','Rulebook')}</b>`}</div>`}
  ${v==='camp'&&curCamp().creating==null?`<nav class="tabs" role="tablist">${G_TABS.map(t=>`<button role="tab" aria-selected="${G().tab===t[0]}" data-act="gTab" data-t="${t[0]}">${P(t[1])}</button>`).join('')}</nav>`:''}
  ${v==='char'&&c&&c.creating==null?`<nav class="tabs" role="tablist">${tabsFor(c).map(t=>`<button role="tab" aria-selected="${ui.tab===t[0]}" data-act="tab" data-t="${t[0]}">${P(t[1])}</button>`).join('')}</nav>`:''}`}
 function vHome(){const g=S.game,list=S.chars.filter(c=>(c.game||'dh')===g);if(g==='dnd')dNeed('data');
@@ -976,8 +976,40 @@ function vNotes(c){return `<section class="blk"><div class="grid g2"><div class=
 /* ============ rules reference ============ */
 const slug=t=>t.toLowerCase().replace(/&/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 // two rulebooks share one viewer: Daggerheart SRD (chapters at heading level ≤3) and the D&D SRD (≤2)
-function useRules(g){const src=g==='dnd'?window.DND_RULES:window.DH_RULES;if(!src||!src.length)return false;
- if(!RSET[g]){const ch=[],lim=g==='dnd'?2:3;src.forEach((x,i)=>{if(x.l<=lim)ch.push(i);x.ch=ch.length?ch[ch.length-1]:0;x.lc=(x.t+'\n'+x.m).toLowerCase()});RSET[g]={rules:src,ch}}
+/* ---- uploaded rulebooks: parsed into sections in the browser and kept in IndexedDB, on this device only ---- */
+const books={list:null,cache:{},busy:false};
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+async function pdfLib(){if(!window.pdfjsLib)await loadScript(PDFJS+'pdf.min.js');window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';return window.pdfjsLib}
+async function booksLoad(){if(books.list||books.loading)return;books.loading=true;try{books.list=(await idb('readonly',st=>st.get('books')))||[]}catch(e){books.list=[]}render()}
+async function bookOpen(id){if(books.cache[id]||books.opening===id)return;books.opening=id;try{const b=await idb('readonly',st=>st.get('book:'+id));books.cache[id]=b&&b.rules||[]}catch(e){books.cache[id]=[]}books.opening=null;render()}
+const bookMeta=id=>(books.list||[]).find(x=>x.id===id);
+const bookId=()=>{const b=ui.book;return b&&(b==='dh'||b==='dnd'||bookMeta(b))?b:ruleGame()};
+const bookMsg=t=>{const el=document.getElementById('bookMsg');if(el)el.textContent=t};
+// markdown / html / plain text → sections ({l,t,m}) like the built-in rulebooks
+function mdSections(t,title){const secs=[];let cur=null;
+ for(const line of t.replace(/\r/g,'').split('\n')){const m=/^(#{1,4})\s+(.+)$/.exec(line);if(m){cur={l:m[1].length,t:m[2].trim(),m:''};secs.push(cur)}else{if(!cur){cur={l:1,t:title,m:''};secs.push(cur)}cur.m+=line+'\n'}}
+ secs.forEach(x=>x.m=x.m.replace(/\n{3,}/g,'\n\n').trim());const top=Math.min(...secs.map(x=>x.l));secs.forEach(x=>x.l=Math.min(4,x.l-top+2));return secs}
+function textSections(t,title){const paras=t.replace(/\r/g,'').split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean),secs=[];let buf=[],len=0;
+ const flush=()=>{if(!buf.length)return;const first=buf[0].split('\n')[0].slice(0,70);secs.push({l:2,t:`${secs.length+1}. ${first}`,m:buf.join('\n\n')});buf=[];len=0};
+ for(const p of paras){buf.push(p);len+=p.length;if(len>3500)flush()}flush();return secs.length?secs:[{l:2,t:title,m:t}]}
+function htmlToMd(t){const doc=new DOMParser().parseFromString(t,'text/html');doc.querySelectorAll('script,style,nav,header,footer').forEach(e=>e.remove());let out='';
+ const walk=n=>{for(const e of n.children){const tag=e.tagName;if(/^H[1-4]$/.test(tag))out+=`\n${'#'.repeat(+tag[1])} ${e.textContent.trim()}\n\n`;else if(tag==='LI')out+=`- ${e.textContent.trim()}\n`;else if(/^(P|PRE|BLOCKQUOTE|TD|TH|DT|DD)$/.test(tag))out+=e.textContent.trim()+'\n\n';else walk(e)}};walk(doc.body);return out}
+async function pdfSections(f,title){const lib=await pdfLib(),pdf=await lib.getDocument({data:await f.arrayBuffer()}).promise,n=pdf.numPages,pages=[];
+ for(let p=1;p<=n;p++){const tc=await(await pdf.getPage(p)).getTextContent();pages.push(tc.items.map(i=>i.str+(i.hasEOL?'\n':' ')).join('').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim());if(p%5===0||p===n)bookMsg(L(`PDF olvasása: ${p}/${n}. oldal…`,`Reading PDF: page ${p}/${n}…`))}
+ let marks=[];const addMarks=async(items,l)=>{for(const it of items||[]){try{const dest=typeof it.dest==='string'?await pdf.getDestination(it.dest):it.dest;if(dest&&dest[0])marks.push({t:it.title,p:await pdf.getPageIndex(dest[0]),l})}catch(e){}if(l<3)await addMarks(it.items,l+1)}};
+ try{await addMarks(await pdf.getOutline(),2)}catch(e){}
+ if(!marks.length)for(let p=0;p<n;p+=20)marks.push({t:L(`${p+1}–${Math.min(n,p+20)}. oldal`,`Pages ${p+1}–${Math.min(n,p+20)}`),p,l:2});
+ marks.sort((a,b2)=>a.p-b2.p||a.l-b2.l);const secs=[];if(marks[0].p>0||marks[0].l>2)secs.push({l:2,t:title,m:''});
+ pages.forEach((txt,i)=>{marks.filter(m=>m.p===i).forEach(m=>secs.push({l:m.l,t:m.t,m:''}));if(txt)secs.push({l:3,t:`${i+1}. ${L('oldal','page')} – ${txt.split('\n')[0].slice(0,50)}`,m:txt.replace(/^([#>|])/gm,'\\$1')})});return secs}
+async function bookUpload(files){if(books.busy)return;books.busy=true;await booksLoad();let last=null;
+ for(const f of files){const ext=(f.name.split('.').pop()||'').toLowerCase(),title=f.name.replace(/\.[^.]+$/,'');bookMsg(L(`Feldolgozás: ${f.name}…`,`Processing ${f.name}…`));
+  try{let secs;if(ext==='pdf')secs=await pdfSections(f,title);else{const t=await f.text();secs=ext==='html'||ext==='htm'?mdSections(htmlToMd(t),title):/^#{1,4} /m.test(t)?mdSections(t,title):textSections(t,title)}
+   if(!secs.length||!secs.some(x=>x.m))throw new Error('empty');const id='u:'+uid6(),meta={id,name:title,secs:secs.length,chars:secs.reduce((q,x)=>q+x.m.length,0),added:Date.now()};
+   await idb('readwrite',st=>st.put({id,rules:secs},'book:'+id));books.list.push(meta);await idb('readwrite',st=>st.put(books.list,'books'));books.cache[id]=secs;last=id}
+  catch(e){books.busy=false;bookMsg(e&&e.message==='empty'?L(`A(z) ${f.name} fájlban nem találtam szöveget (beszkennelt PDF-ből nem lehet szöveget kinyerni).`,`No text found in ${f.name} (scanned PDFs have no extractable text).`):L(`A(z) ${f.name} feldolgozása nem sikerült. PDF-hez internetkapcsolat kell az első alkalommal.`,`Could not process ${f.name}. PDFs need an internet connection the first time.`));return}}
+ books.busy=false;if(last){ui.book=last;render();bookMsg(L('Kész – a szabálykönyv feltöltve, kereshető.','Done – the rulebook is uploaded and searchable.'))}}
+function useRules(g){const src=g.startsWith('u:')?books.cache[g]:g==='dnd'?window.DND_RULES:window.DH_RULES;if(!src||!src.length)return false;
+ if(!RSET[g]){const ch=[],lim=g==='dh'?3:2;src.forEach((x,i)=>{if(x.l<=lim)ch.push(i);x.ch=ch.length?ch[ch.length-1]:0;x.lc=(x.t+'\n'+x.m).toLowerCase()});RSET[g]={rules:src,ch}}
  RULES=RSET[g].rules;RCH=RSET[g].ch;if(RGAME!==g){RGAME=g;ui.rule={q:'',ch:RCH[0]||0,hl:null}}return true}
 const ruleGame=()=>ui.view==='char'&&cur()?(cur().game||'dh'):S.game;
 const ruleFoot=g=>g==='dnd'?`<p class="small muted">This work includes material from the System Reference Document 5.2.1 (“SRD 5.2.1”) by Wizards of the Coast LLC, available at <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener">https://www.dndbeyond.com/srd</a>. The SRD 5.2.1 is licensed under the Creative Commons Attribution 4.0 International License, available at <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener">https://creativecommons.org/licenses/by/4.0/legalcode</a>. ${L('Nem hivatalos rajongói eszköz; nem áll kapcsolatban a Wizards of the Coasttal. Az SRD a teljes szabálykönyvnek csak a szabadon felhasználható része.','Unofficial fan tool; not affiliated with Wizards of the Coast. The SRD is only the freely usable part of the full rulebooks.')}</p>`
@@ -993,18 +1025,26 @@ function ruleChapter(ci){let end=RULES.length;for(const j of RCH)if(j>ci){end=j;
  for(let i=ci;i<end;i++){const x=RULES[i];h+=`<section id="rs_${i}"><h${x.l} class="mh">${esc(x.t)}</h${x.l}>${md(x.m)}</section>`}return h}
 function hlite(root,toks){if(!root||!toks||!toks.length||!document.createTreeWalker)return;const re=new RegExp('('+toks.map(reEsc).join('|')+')','gi');const tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);const ns=[];while(tw.nextNode())ns.push(tw.currentNode);
  for(const n of ns){re.lastIndex=0;if(!re.test(n.nodeValue))continue;const sp=document.createElement('span');sp.innerHTML=esc(n.nodeValue).replace(re,'<mark>$1</mark>');n.replaceWith(...sp.childNodes)}}
-function vRules(){const g=ruleGame();if(g==='dnd'&&!dNeed('rules'))return dLoading('rules');
+function bookBar(g){const ub=books.list||[],mg=ui.bookMgr;
+ return `<div class="panel bookbar"><div class="row"><label class="chk" style="flex:1 1 260px;min-width:0">${L('Szabálykönyv','Rulebook')} <select id="bookSel" data-chg="bookPick" style="flex:1;min-width:0">
+  <option value="dh" ${g==='dh'?'selected':''}>Daggerheart SRD 1.0</option><option value="dnd" ${g==='dnd'?'selected':''}>D&amp;D 5e SRD 5.2.1</option>
+  ${ub.length?`<optgroup label="${L('Saját feltöltések','My uploads')}">${ub.map(b2=>`<option value="${b2.id}" ${g===b2.id?'selected':''}>${esc(b2.name)}</option>`).join('')}</optgroup>`:''}</select></label>
+  <label class="btn sm pri">+ ${L('Szabálykönyv feltöltése','Upload a rulebook')}<input type="file" id="bookFile" accept=".pdf,.md,.markdown,.txt,.html,.htm" multiple hidden></label>${ub.length?`<button class="btn sm ${mg?'fear':''}" data-act="bookMgr">${L('Feltöltések kezelése','Manage uploads')}</button>`:''}</div>
+  <p class="small muted" id="bookMsg" style="margin-top:6px">${L('PDF, Markdown, HTML vagy szöveges fájl tölthető fel; a lap fejezetekre bontja és kereshetővé teszi. A feltöltött könyvek csak ezen az eszközön, ebben a böngészőben tárolódnak, sehová nem kerülnek fel.','Upload a PDF, Markdown, HTML or text file; it is split into chapters and made searchable. Uploaded books stay on this device, in this browser, and are not sent anywhere.')}</p>
+  ${mg&&ub.length?`<div class="list" style="margin-top:8px">${ub.map((b2,i)=>`<div class="li"><input type="text" id="bk_${i}" class="grow" value="${esc(b2.name)}" data-chg="bookRename" data-id="${b2.id}" aria-label="${L('Név','Name')}"><span class="small muted num">${b2.secs} ${L('rész','sections')} · ${Math.round(b2.chars/1000)}k ${L('karakter','chars')}</span><button class="btn sm warn" data-act="bookDel" data-id="${b2.id}">${ui.confirm==='bk'+b2.id?L('Biztos?','Sure?'):L('Törlés','Delete')}</button></div>`).join('')}</div>`:''}</div>`}
+function vRules(){booksLoad();const g=bookId(),own=g.startsWith('u:');if(g==='dnd'&&!dNeed('rules'))return bookBar(g)+dLoading('rules');
+ if(own&&!books.cache[g]){bookOpen(g);return `<section class="blk">${bookBar(g)}<div class="panel"><p class="muted">${L('Szabálykönyv betöltése…','Loading the rulebook…')}</p></div></section>`}
  const R=(hu,en,body)=>`<div class="panel"><h3>${T(hu,en)}</h3>${body.map(x=>TX(b(x[0],x[1]))).join('<hr>')}</div>`;const ok=useRules(g),r=ui.rule;
  if(!ok)return `<section class="blk"><p class="note d">${L('A szabálykönyv adatfájlja (data/srd-rules.js) nem töltődött be.','The rulebook data file (data/srd-rules.js) did not load.')}</p></section>`;
  const ci=RCH.indexOf(r.ch),prev=RCH[ci-1],next=RCH[ci+1];
  const nav=`<div class="row">${prev!=null?`<button class="btn sm" data-act="ruleChapGo" data-i="${prev}">← ${esc(RULES[prev].t)}</button>`:''}<span class="grow"></span>${next!=null?`<button class="btn sm" data-act="ruleChapGo" data-i="${next}">${esc(RULES[next].t)} →</button>`:''}</div>`;
  return `<section class="blk">
- <div class="panel"><h2>${g==='dnd'?L('D&amp;D 5e alapszabályok – teljes SRD 5.2.1','D&amp;D 5e core rules – full SRD 5.2.1'):L('Daggerheart alapszabályok – teljes SRD 1.0','Daggerheart core rules – full SRD 1.0')}</h2><p class="small muted" style="margin-bottom:8px">${g==='dnd'?L('Az ötödik kiadás 2024-es szabályainak szabadon felhasználható System Reference Documentje, angolul: játékszabályok, osztályok, varázslatok, felszerelés, mágikus tárgyak és szörnyek. Írj be egy vagy több szót, vagy válassz fejezetet.','The freely usable System Reference Document of the 2024 fifth edition rules: rules of play, classes, spells, equipment, magic items and monsters. Type one or more words, or pick a chapter.'):L('A hivatalos System Reference Document teljes angol szövege, benne mind a 189 tartománykártya. Írj be egy vagy több szót (angolul), vagy válassz fejezetet.','The full text of the official System Reference Document, including all 189 domain cards. Type one or more words, or pick a chapter.')}</p>
-  <div class="row"><input type="search" id="ruleQ" class="grow" style="min-width:180px" placeholder="${g==='dnd'?L('Keresés, pl. „grappled”, „fireball”, „opportunity attack”…','Search, e.g. “grappled”, “fireball”, “opportunity attack”…'):L('Keresés a szabályokban, pl. „vulnerable”, „recall cost”, „Rain of Blades”…','Search the rules, e.g. “vulnerable”, “recall cost”, “Rain of Blades”…')}" value="${esc(r.q)}">
-   <select id="ruleCh" data-chg="ruleChap" style="width:auto;max-width:100%" aria-label="${L('Fejezet','Chapter')}">${RCH.map(i=>`<option value="${i}" ${i===r.ch?'selected':''}>${RULES[i].l<=(g==='dnd'?1:2)?'':'   '}${esc(RULES[i].t)}</option>`).join('')}</select></div>
+ ${bookBar(g)}<div class="panel"><h2>${own?esc((bookMeta(g)||{}).name||''):g==='dnd'?L('D&amp;D 5e alapszabályok – teljes SRD 5.2.1','D&amp;D 5e core rules – full SRD 5.2.1'):L('Daggerheart alapszabályok – teljes SRD 1.0','Daggerheart core rules – full SRD 1.0')}</h2><p class="small muted" style="margin-bottom:8px">${own?L('Saját feltöltésed. Írj be egy vagy több szót, vagy válassz fejezetet.','Your own upload. Type one or more words, or pick a chapter.'):g==='dnd'?L('Az ötödik kiadás 2024-es szabályainak szabadon felhasználható System Reference Documentje, angolul: játékszabályok, osztályok, varázslatok, felszerelés, mágikus tárgyak és szörnyek. Írj be egy vagy több szót, vagy válassz fejezetet.','The freely usable System Reference Document of the 2024 fifth edition rules: rules of play, classes, spells, equipment, magic items and monsters. Type one or more words, or pick a chapter.'):L('A hivatalos System Reference Document teljes angol szövege, benne mind a 189 tartománykártya. Írj be egy vagy több szót (angolul), vagy válassz fejezetet.','The full text of the official System Reference Document, including all 189 domain cards. Type one or more words, or pick a chapter.')}</p>
+  <div class="row"><input type="search" id="ruleQ" class="grow" style="min-width:180px" placeholder="${own?L('Keresés ebben a könyvben…','Search this book…'):g==='dnd'?L('Keresés, pl. „grappled”, „fireball”, „opportunity attack”…','Search, e.g. “grappled”, “fireball”, “opportunity attack”…'):L('Keresés a szabályokban, pl. „vulnerable”, „recall cost”, „Rain of Blades”…','Search the rules, e.g. “vulnerable”, “recall cost”, “Rain of Blades”…')}" value="${esc(r.q)}">
+   <select id="ruleCh" data-chg="ruleChap" style="width:auto;max-width:100%" aria-label="${L('Fejezet','Chapter')}">${RCH.map(i=>`<option value="${i}" ${i===r.ch?'selected':''}>${RULES[i].l<=(g==='dh'?2:1)?'':'   '}${esc(RULES[i].t)}</option>`).join('')}</select></div>
   <div id="ruleRes">${ruleResults()}</div></div>
  <article class="panel rules" id="ruleView">${nav}${ruleChapter(r.ch)}${nav}</article>
- ${g==='dnd'?'':`<details class="panel"><summary>${L('Gyors magyar összefoglaló a legfontosabb szabályokról','Quick summary of the key rules')}</summary><div class="grid g2">
+ ${g!=='dh'?'':`<details class="panel"><summary>${L('Gyors magyar összefoglaló a legfontosabb szabályokról','Quick summary of the key rules')}</summary><div class="grid g2">
  ${R('Kettősség-dobás','Duality Roll',[['Dobj 2d12-vel (Remény- és Félelem-kocka), add hozzá a tulajdonságot és a módosítókat, és vesd össze a Nehézséggel. Remény magasabb: kapsz 1 Reményt. Félelem magasabb: a KM kap 1 Félelmet. Egyforma kockák: kritikus siker – 1 Remény és 1 Stressz törlése.','Roll 2d12 (Hope and Fear Die), add the trait and modifiers, compare to the Difficulty. Hope higher: you gain a Hope. Fear higher: the GM gains a Fear. Matching dice: critical success – gain a Hope and clear a Stress.'],['Előny: +1d6, hátrány: −1d6; kioltják egymást. Tapasztalat: 1 Reményért hozzáadható. Segítség: 1 Reményért a társad előnykockát dob. Reakciódobás nem termel Reményt vagy Félelmet.','Advantage: +1d6, disadvantage: −1d6; they cancel out. Experience: spend a Hope to add it. Help an Ally: spend a Hope to roll an advantage die for them. Reaction rolls don\'t generate Hope or Fear.']])}
  ${R('Sebzés és páncél','Damage and armor',[['Sebzés < Jelentős küszöb: 1 ÉP. ≥ Jelentős: 2 ÉP. ≥ Súlyos: 3 ÉP. Egy Páncélhely jelölésével a súlyosság egy fokozattal csökken. A küszöbökhöz hozzáadódik a szinted.','Damage below Major: mark 1 HP. At or above Major: 2 HP. At or above Severe: 3 HP. Mark an Armor Slot to reduce the severity by one threshold. Your level is added to your thresholds.'],['Sebzésdobás: Jártasság × fegyverkocka + bónusz. Kritikus: a kockák lehetséges maximuma + a dobás. Ellenállás: fele sebzés; immunitás: nincs sebzés.','Damage roll: Proficiency × weapon die + bonus. Critical: maximum possible dice value + the roll. Resistance halves damage; immunity negates it.']])}
  ${R('Remény és Stressz','Hope and Stress',[['Legfeljebb 6 Reményed lehet. Költhető: Tapasztalat (1), társ segítése (1), Tag Team dobás (3, sessionönként egyszer), Remény-képesség (3).','You can hold up to 6 Hope. Spend it on: an Experience (1), Help an Ally (1), a Tag Team Roll (3, once per session), your Hope Feature (3).'],['Ha Stresszt kellene jelölnöd, de nincs hely, helyette 1 ÉP-t jelölsz. Ha az utolsó Stressz-helyed is tele, Sebezhető (Vulnerable) leszel, amíg nem törölsz legalább egyet.','If you must mark Stress but can\'t, mark 1 HP instead. When your last Stress slot is marked, you become Vulnerable until you clear at least one.']])}
@@ -1012,7 +1052,7 @@ function vRules(){const g=ruleGame();if(g==='dnd'&&!dNeed('rules'))return dLoadi
  ${R('Távolságok','Ranges',[['Közelharc: érintés. Nagyon közel: 1,5–3 m. Közel: 3–9 m (ennyit mozoghatsz akció részeként). Távol: 9–30 m. Nagyon távol: 30–90 m. Közelnél messzebbre mozgáshoz Fürgeség-dobás kell.','Melee: touching. Very Close: 5–10 ft. Close: 10–30 ft. (you can move this far as part of an action). Far: 30–100 ft. Very Far: 100–300 ft. Moving beyond Close needs an Agility Roll.']])}
  ${R('Tartománykártyák','Domain cards',[['Aktív pakli: legfeljebb 5 kártya, a többi a tárolóban. Pihenő elején szabadon cserélhetsz; máskor az Előhívási árat Stresszben fizeted. Minden szinten kapsz egy új kártyát (szinted vagy alacsonyabb).','Loadout: up to 5 cards, the rest sit in the vault. Swap freely at the start of a rest; otherwise pay the Recall Cost in Stress. You gain one new card per level (your level or lower).']])}
  </div></details>`}
- ${ruleFoot(g)}</section>`}
+ ${own?`<p class="small muted">${L('Saját feltöltés – csak ezen az eszközön tárolódik.','Your own upload – stored on this device only.')}</p>`:ruleFoot(g)}</section>`}
 
 /* ============ import / export ============ */
 const Tp=(hu,en)=>lang==='hu'&&hu!==en?`${hu} (${en})`:en;const Np=o=>Tp(o.hu,o.en);
@@ -1063,7 +1103,7 @@ const sheetBody=(c,blk)=>(c.portrait?`<img class="pport" src="${c.portrait}" alt
 const sheetHtml=(c,blk)=>`<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(c.name||'Daggerheart')}</title><style>${PRINTCSS}</style></head><body>${sheetBody(c,blk)}</body></html>`;
 function loadScript(src){return new Promise((ok,no)=>{const t=document.createElement('script');t.src=src;t.onload=ok;t.onerror=no;document.head.appendChild(t)})}
 async function importPdf(file){expMsg(L('PDF olvasása…','Reading the PDF…'));let text='';
- try{const B='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';if(!window.pdfjsLib)await loadScript(B+'pdf.min.js');window.pdfjsLib.GlobalWorkerOptions.workerSrc=B+'pdf.worker.min.js';
+ try{await pdfLib();
   const pdf=await window.pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;for(let n=1;n<=pdf.numPages;n++){const tc=await(await pdf.getPage(n)).getTextContent();text+=tc.items.map(i=>i.str).join('')+'\n'}}
  catch(e){return expMsg(L('A PDF beolvasása nem sikerült (a PDF-olvasó letöltéséhez internetkapcsolat kell).','Could not read the PDF (the PDF reader needs an internet connection to load).'))}
  const j=await unpackChar(text).catch(()=>null);if(!j)return expMsg(L('Ebben a PDF-ben nincs visszatölthető karakteradat. Csak az ezzel az appal nyomtatott PDF tölthető vissza; más (pl. hivatalos) karakterlap-PDF-et nem tud értelmezni.','This PDF holds no loadable character data. Only PDFs printed from this app can be loaded back; other (e.g. official) sheet PDFs cannot be interpreted.'));importChar(j)}
@@ -1103,7 +1143,12 @@ const A={
  home(){ui.view='home';ui.imp=false;try{history.replaceState(null,'','#')}catch(e){}render();window.scrollTo(0,0)},
  game(x){S.game=x.g;saveLocal();render()},
  openChar(x){S.cur=x.id;ui.view='char';ui.tab='sheet';ui.lvl=null;ui.rest=null;ui.last=null;ui.dmg=null;ui.dlast=null;saveLocal();render();window.scrollTo(0,0)},
- openRules(){ui.view='rules';ui.imp=false;render();window.scrollTo(0,0)},
+ bookPick(x,el){ui.book=el.value;render()},
+ bookMgr(){ui.bookMgr=!ui.bookMgr;render()},
+ async bookRename(x,el){const m=bookMeta(x.id);if(!m||!el.value.trim())return;m.name=el.value.trim();await idb('readwrite',st=>st.put(books.list,'books')).catch(()=>{});render()},
+ async bookDel(x){const k='bk'+x.id;if(ui.confirm!==k){ui.confirm=k;return render()}ui.confirm=null;books.list=books.list.filter(q=>q.id!==x.id);delete books.cache[x.id];delete RSET[x.id];if(ui.book===x.id)ui.book=null;
+  await idb('readwrite',st=>st.delete('book:'+x.id)).catch(()=>{});await idb('readwrite',st=>st.put(books.list,'books')).catch(()=>{});render()},
+ openRules(){ui.view='rules';ui.book=null;ui.imp=false;render();window.scrollTo(0,0)},
  selChar(x,el){S.cur=el.value;ui.dlast=null;ui.lvl=null;ui.rest=null;ui.last=null;ui.dmg=null;saveLocal();render()},
  newChar(){if(S.game==='dnd')return A.dNewChar();const c=newChar();S.chars.push(c);S.cur=c.id;ui.view='char';ui.tab='sheet';touch(c);render();window.scrollTo(0,0)},
  randChar(){const c=newChar();const ck=pick(Object.keys(CLASSES));c.classId=ck;c.subId=pick(CLASSES[ck].subs).id;c.anc1=c.anc2=pick(Object.keys(ANC));c.community=pick(Object.keys(COMM));
@@ -1257,7 +1302,7 @@ const A={
 
 /* ============ events ============ */
 let reT=null;
-document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;if(el.tagName==='A')e.preventDefault();const a=el.dataset.act;if(!['delChar','lvlUndo','sessDel','noteDel','gRm','gDelCamp','gEncReset'].includes(a))ui.confirm=null;A[a](el.dataset,el)});
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;if(el.tagName==='A')e.preventDefault();const a=el.dataset.act;if(!['delChar','lvlUndo','sessDel','noteDel','gRm','gDelCamp','gEncReset','bookDel'].includes(a))ui.confirm=null;A[a](el.dataset,el)});
 document.addEventListener('input',e=>{const el=e.target;
  if(el.dataset.bind){let v=el.type==='checkbox'?el.checked:el.value;if(el.dataset.num!==undefined||el.type==='number')v=v===''?0:+v;setP(bindRoot(),el.dataset.bind,v);touch()}
  if(el.dataset.ui){setP(ui,el.dataset.ui,el.value)}
@@ -1265,6 +1310,7 @@ document.addEventListener('input',e=>{const el=e.target;
  if(el.id==='ruleQ'){ui.rule.q=el.value;const r=$('#ruleRes');if(r)r.innerHTML=ruleResults()}});
 document.addEventListener('change',e=>{const el=e.target;
  if(el.id==='impFile'&&el.files[0]){importFile(el.files[0]);return}
+ if(el.id==='bookFile'&&el.files.length){bookUpload([...el.files]);el.value='';return}
  if(el.dataset.chg){if(el.dataset.bind){/* value already set by input */}A[el.dataset.chg](el.dataset,el);if(el.dataset.bind){touch();render()}return}
  if(el.tagName==='SELECT'&&(el.dataset.bind||el.dataset.ui)){if(el.dataset.bind){let v=el.value;if(el.dataset.num!==undefined)v=+v;setP(bindRoot(),el.dataset.bind,v);touch()}else setP(ui,el.dataset.ui,el.value);return render()}
  if(el.type==='number'||el.dataset.re!==undefined){clearTimeout(reT);reT=setTimeout(render,250)}});
